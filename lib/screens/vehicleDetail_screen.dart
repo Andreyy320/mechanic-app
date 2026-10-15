@@ -4,7 +4,6 @@ import 'mileage_sheet.dart';
 import '../services/api.dart';
 import 'ui.dart' show daysOf, fmtKm, fmtDate;
 
-/// ───── Палитра (светлая, такая же, как в vehicles_screen) ─────
 class _P {
   static const bg = Color(0xFFF6F7FA);
   static const card = Color(0xFFFFFFFF);
@@ -18,8 +17,6 @@ class _P {
   static const red = Color(0xFFDC2626);
 }
 
-/// Узел автомобиля. Данные приходят с сервера:
-/// справочник /part-types + журнал замен /parts.
 class _Node {
   final int typeId;
   final String title;
