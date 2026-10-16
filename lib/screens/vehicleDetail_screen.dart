@@ -1,3 +1,4 @@
+import 'dart:math' show max;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'mileage_sheet.dart';
@@ -17,23 +18,42 @@ class _P {
   static const red = Color(0xFFDC2626);
 }
 
+/// Узел, который реально установлен на машине (по записям из /parts).
 class _Node {
   final int typeId;
   final String title;
-  final String category;
   final IconData icon;
-  final int intervalKm;
-  final int? lastKm; // null = замену ещё не фиксировали
-  _Node(this.typeId, this.title, this.category, this.icon, this.intervalKm,
-      this.lastKm);
+  final int normKm; // норматив замены
+  final int warn1; // жёлтый порог (осталось км)
+  final int warn2; // красный порог (осталось км)
+  final int lastKm; // пробег машины при последней установке
+  final String installedAt; // YYYY-MM-DD
+  _Node(this.typeId, this.title, this.icon, this.normKm, this.warn1,
+      this.warn2, this.lastKm, this.installedAt);
 
-  int? left(int mileage) =>
-      lastKm == null ? null : intervalKm - (mileage - lastKm!);
-  double? value(int mileage) {
+  int left(int mileage) => normKm - max(mileage - lastKm, 0);
+
+  double value(int mileage) =>
+      (left(mileage) / normKm).clamp(0.0, 1.0).toDouble();
+
+  /// 0 — в норме, 1 — скоро замена, 2 — требует замены.
+  /// Пороги те же, что на сайте и в «Требует внимания».
+  int level(int mileage) {
     final l = left(mileage);
-    return l == null ? null : (l / intervalKm).clamp(0.0, 1.0).toDouble();
+    final w1 = max(warn1, warn2);
+    if (w1 == 0 && warn2 == 0) {
+      // пороги не заданы — считаем по процентам
+      final v = value(mileage);
+      return v <= 0.2 ? 2 : (v <= 0.5 ? 1 : 0);
+    }
+    if (l <= warn2) return 2;
+    if (l <= w1) return 1;
+    return 0;
   }
 }
+
+bool _truthy(dynamic v) => v == true || v == 1 || v == 'true';
+int _int(dynamic v) => ((v as num?) ?? 0).round();
 
 IconData _iconFor(String name) {
   final n = name.toLowerCase();
@@ -41,16 +61,15 @@ IconData _iconFor(String name) {
   if (n.contains('колодк') || n.contains('диск')) return Icons.album_outlined;
   if (n.contains('свеч')) return Icons.bolt_rounded;
   if (n.contains('жидк')) return Icons.water_drop_outlined;
+  if (n.contains('фильтр')) return Icons.filter_alt_outlined;
   return Icons.settings_outlined;
 }
 
-Color _rc(double v) => v > 0.5 ? _P.green : (v > 0.2 ? _P.accent : _P.red);
+Color _lc(int level) =>
+    level == 2 ? _P.red : (level == 1 ? _P.accent : _P.green);
 
-String _status(double v) {
-  if (v <= 0.2) return 'ТРЕБУЕТ ЗАМЕНЫ';
-  if (v <= 0.5) return 'СКОРО ЗАМЕНА';
-  return 'В НОРМЕ';
-}
+String _status(int level) =>
+    level == 2 ? 'ТРЕБУЕТ ЗАМЕНЫ' : (level == 1 ? 'СКОРО ЗАМЕНА' : 'В НОРМЕ');
 
 Color _dc(int? d) {
   if (d == null) return _P.muted;
@@ -66,6 +85,10 @@ String _dshort(int? d) {
   return '$d дн.';
 }
 
+String _two(int x) => x.toString().padLeft(2, '0');
+String _iso(DateTime d) => '${d.year}-${_two(d.month)}-${_two(d.day)}';
+String _ru(DateTime d) => '${_two(d.day)}.${_two(d.month)}.${d.year}';
+
 class VehicleDetailScreen extends StatefulWidget {
   final dynamic vehicle;
   const VehicleDetailScreen({super.key, required this.vehicle});
@@ -75,11 +98,10 @@ class VehicleDetailScreen extends StatefulWidget {
 
 class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
   late final Map<String, dynamic> _v = Map<String, dynamic>.from(widget.vehicle);
-  List<_Node> _nodes = [];
+  List<_Node> _nodes = []; // только установленное на этой машине
+  List<dynamic> _types = []; // справочник запчастей (для новой установки)
   bool _loading = true;
   String? _err;
-  String _cat = 'Все';
-  _Node? _selected;
 
   @override
   void initState() {
@@ -95,24 +117,47 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
     try {
       final res = await Future.wait([Api.partTypes(), Api.parts()]);
       final types = res[0];
-      final mine = res[1].where((p) => p['vehicle_id'] == _v['id']).toList();
+      final mine = res[1].where((p) => p['vehicle_id'] == _v['id']);
+
+      // по каждой запчасти берём последнюю установку на этой машине
+      final latest = <int, dynamic>{};
+      for (final p in mine) {
+        final tid = _int(p['part_type_id']);
+        final cur = latest[tid];
+        if (cur == null) {
+          latest[tid] = p;
+          continue;
+        }
+        final c = '${p['installed_at']}'.compareTo('${cur['installed_at']}');
+        if (c > 0 || (c == 0 && _int(p['id']) > _int(cur['id']))) {
+          latest[tid] = p;
+        }
+      }
 
       final nodes = <_Node>[];
-      for (final t in types) {
-        if (t['track'] == false || t['track'] == 0) continue;
-        final inst = mine.where((p) => p['part_type_id'] == t['id']).toList()
-          ..sort((a, b) => ((b['mileage_at'] as num?) ?? 0)
-              .compareTo((a['mileage_at'] as num?) ?? 0));
+      for (final p in latest.values) {
+        final norm = _int(p['norm_km']);
+        if (norm <= 0) continue; // без норматива ресурс не посчитать
         nodes.add(_Node(
-          t['id'],
-          '${t['name']}',
-          '${t['category'] ?? 'Узлы'}',
-          _iconFor('${t['name']}'),
-          (t['norm_km'] as num).round(),
-          inst.isEmpty ? null : (inst.first['mileage_at'] as num).round(),
+          _int(p['part_type_id']),
+          '${p['part_name']}',
+          _iconFor('${p['part_name']}'),
+          norm,
+          _int(p['warn1_km']),
+          _int(p['warn2_km']),
+          _int(p['mileage_at']),
+          '${p['installed_at']}',
         ));
       }
-      if (mounted) setState(() => _nodes = nodes);
+
+      if (mounted) {
+        setState(() {
+          _nodes = nodes;
+          _types = types
+              .where((t) => _truthy(t['track']) && _int(t['norm_km']) > 0)
+              .toList();
+        });
+      }
     } on ApiException catch (e) {
       if (mounted) setState(() => _err = e.message);
     } catch (_) {
@@ -129,101 +174,30 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
     if (km != null) setState(() => _v['mileage'] = km);
   }
 
-  List<String> get _cats {
-    final s = <String>[];
-    for (final n in _nodes) {
-      if (!s.contains(n.category)) s.add(n.category);
-    }
-    return ['Все', ...s];
-  }
-
-  int _count(String c) =>
-      c == 'Все' ? _nodes.length : _nodes.where((n) => n.category == c).length;
-
-  Future<void> _reset() async {
-    if (_nodes.isEmpty) return;
-    final m = _mileage;
-    final sorted = [..._nodes]
-      ..sort((a, b) => (a.value(m) ?? 2).compareTo(b.value(m) ?? 2));
-    final node = _selected ?? sorted.first;
-
+  /// Форма «Добавить: Установка».
+  /// node != null — замена конкретного узла (запчасть уже выбрана),
+  /// node == null — новая установка с выбором запчасти.
+  Future<void> _install({_Node? node}) async {
     final ok = await showModalBottomSheet<bool>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: _P.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('ЗАФИКСИРОВАТЬ ЗАМЕНУ',
-                style: TextStyle(
-                    fontSize: 11,
-                    letterSpacing: 1.1,
-                    fontWeight: FontWeight.w800,
-                    color: _P.accent)),
-            const SizedBox(height: 8),
-            Text(node.title,
-                style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: _P.text)),
-            const SizedBox(height: 6),
-            Text(
-                'Ресурс будет сброшен до 100% на пробеге ${fmtKm(m)} км.',
-                style: const TextStyle(fontSize: 14, color: _P.muted)),
-            const SizedBox(height: 20),
-            SizedBox(
-              height: 52,
-              child: FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: FilledButton.styleFrom(
-                  backgroundColor: _P.accent,
-                  foregroundColor: _P.onAccent,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                ),
-                child: const Text('ПОДТВЕРДИТЬ',
-                    style: TextStyle(
-                        fontSize: 14,
-                        letterSpacing: 0.4,
-                        fontWeight: FontWeight.w800)),
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child:
-              const Text('Отмена', style: TextStyle(color: _P.muted)),
-            ),
-          ],
-        ),
+      builder: (_) => _InstallSheet(
+        vehicle: _v,
+        mileage: _mileage,
+        types: _types,
+        fixedTypeId: node?.typeId,
+        fixedName: node?.title,
       ),
     );
-
     if (ok == true) {
-      try {
-        await Api.addPart(
-          vehicleId: _v['id'],
-          partTypeId: node.typeId,
-          installedAt: DateTime.now().toIso8601String().substring(0, 10),
-          mileageAt: m,
-        );
-        _selected = null;
-        await _load();
-      } on ApiException catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(e.message)));
-        }
-      } catch (_) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Нет связи с сервером')));
-        }
+      await _load();
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Установка сохранена')));
       }
     }
   }
@@ -232,10 +206,10 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
   Widget build(BuildContext context) {
     final v = _v;
     final m = _mileage;
-    final list = _nodes
-        .where((n) => _cat == 'Все' || n.category == _cat)
-        .toList()
-      ..sort((a, b) => (a.value(m) ?? 2).compareTo(b.value(m) ?? 2));
+    final list = [..._nodes]..sort((a, b) {
+      final c = b.level(m).compareTo(a.level(m));
+      return c != 0 ? c : a.value(m).compareTo(b.value(m));
+    });
 
     return Scaffold(
       backgroundColor: _P.bg,
@@ -287,12 +261,13 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                 const SizedBox(height: 12),
                 _docs(v),
                 const SizedBox(height: 16),
-                _filters(),
-                const SizedBox(height: 14),
-                for (final n in list) ...[
-                  _nodeCard(n, m),
-                  const SizedBox(height: 12),
-                ],
+                if (list.isEmpty)
+                  _empty()
+                else
+                  for (final n in list) ...[
+                    _nodeCard(n, m),
+                    const SizedBox(height: 12),
+                  ],
               ],
             ),
           ),
@@ -304,10 +279,9 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                 height: 56,
                 width: double.infinity,
                 child: FilledButton.icon(
-                  onPressed: _reset,
-                  icon: const Icon(Icons.check_circle_outline_rounded,
-                      size: 22),
-                  label: const Text('ЗАФИКСИРОВАТЬ ЗАМЕНУ / СБРОС'),
+                  onPressed: _loading ? null : () => _install(),
+                  icon: const Icon(Icons.add_circle_outline_rounded, size: 22),
+                  label: const Text('ДОБАВИТЬ УСТАНОВКУ'),
                   style: FilledButton.styleFrom(
                     backgroundColor: _P.accent,
                     foregroundColor: _P.onAccent,
@@ -327,16 +301,44 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
     );
   }
 
+  Widget _empty() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+      decoration: BoxDecoration(
+        color: _P.card,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _P.line),
+      ),
+      child: const Column(
+        children: [
+          Icon(Icons.build_outlined, size: 36, color: _P.muted),
+          SizedBox(height: 10),
+          Text('Пока нет установленных запчастей',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: _P.text)),
+          SizedBox(height: 4),
+          Text('Нажмите «Добавить установку», чтобы добавить первую',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12.5, color: _P.muted)),
+        ],
+      ),
+    );
+  }
+
   // ───────── верхняя карточка: кольцо + пробег ─────────
 
   Widget _summary(int m) {
-    final known = _nodes.where((n) => n.value(m) != null).toList();
-    final avg = known.isEmpty
+    final has = _nodes.isNotEmpty;
+    final avg = !has
         ? 0.0
-        : known.map((n) => n.value(m)!).reduce((a, b) => a + b) /
-        known.length;
-    final critical = known.where((n) => n.value(m)! <= 0.2).length;
-    final c = _rc(avg);
+        : _nodes.map((n) => n.value(m)).reduce((a, b) => a + b) /
+        _nodes.length;
+    final worst = !has ? 0 : _nodes.map((n) => n.level(m)).reduce(max);
+    final attention = _nodes.where((n) => n.level(m) >= 1).length;
+    final c = has ? _lc(worst) : _P.muted;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -365,7 +367,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                         valueColor: AlwaysStoppedAnimation(c),
                       ),
                     ),
-                    Text('${(avg * 100).round()}%',
+                    Text(has ? '${(avg * 100).round()}%' : '—',
                         style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
@@ -384,29 +386,33 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                             fontWeight: FontWeight.w800,
                             color: _P.text)),
                     const SizedBox(height: 3),
-                    Text('Агрегат по ${known.length} узлам',
+                    Text(
+                        has
+                            ? 'Агрегат по ${_nodes.length} узлам'
+                            : 'Нет данных об установке',
                         style:
                         const TextStyle(fontSize: 12.5, color: _P.muted)),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: (critical > 0 ? _P.red : _P.green)
-                            .withOpacity(0.12),
-                        borderRadius: BorderRadius.circular(8),
+                    if (has) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: c.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          attention > 0
+                              ? '$attention ИЗ ${_nodes.length} ТРЕБУЮТ ВНИМАНИЯ'
+                              : 'ВСЁ В НОРМЕ',
+                          style: TextStyle(
+                              fontSize: 10.5,
+                              letterSpacing: 0.5,
+                              fontWeight: FontWeight.w800,
+                              color: c),
+                        ),
                       ),
-                      child: Text(
-                        critical > 0
-                            ? '$critical ИЗ ${known.length} ТРЕБУЮТ ВНИМАНИЯ'
-                            : 'ВСЁ В НОРМЕ',
-                        style: TextStyle(
-                            fontSize: 10.5,
-                            letterSpacing: 0.5,
-                            fontWeight: FontWeight.w800,
-                            color: critical > 0 ? _P.red : _P.green),
-                      ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -513,64 +519,23 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
     );
   }
 
-  // ───────── фильтры ─────────
-
-  Widget _filters() {
-    return SizedBox(
-      height: 40,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _cats.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (_, i) {
-          final c = _cats[i];
-          final sel = c == _cat;
-          return GestureDetector(
-            onTap: () => setState(() => _cat = c),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: sel ? _P.accent : _P.card,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: sel ? _P.accent : _P.line),
-              ),
-              child: Text(
-                c == 'Все' ? 'Все узлы (${_count(c)})' : '$c (${_count(c)})',
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: sel ? _P.onAccent : _P.text),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  // ───────── карточка узла ─────────
+  // ───────── карточка узла (тап — форма замены) ─────────
 
   Widget _nodeCard(_Node n, int m) {
     final left = n.left(m);
-    final value = n.value(m) ?? 0.0;
-    final c = left == null ? _P.muted : _rc(value);
-    final critical = left != null && value <= 0.2;
-    final sel = identical(_selected, n);
+    final value = n.value(m);
+    final level = n.level(m);
+    final c = _lc(level);
 
     return Material(
       color: _P.card,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        side: BorderSide(
-            color: sel
-                ? _P.accent
-                : (critical ? c.withOpacity(0.45) : _P.line),
-            width: sel ? 1.6 : 1),
+        side: BorderSide(color: level == 2 ? c.withOpacity(0.45) : _P.line),
       ),
       child: InkWell(
-        onTap: () => setState(() => _selected = sel ? null : n),
+        onTap: () => _install(node: n),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
@@ -589,16 +554,26 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(n.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 15.5,
-                            fontWeight: FontWeight.w700,
-                            color: _P.text)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(n.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.w700,
+                                color: _P.text)),
+                        const SizedBox(height: 2),
+                        Text(
+                            'Установлено ${fmtDate(n.installedAt)} · ${fmtKm(n.lastKm)} км',
+                            style: const TextStyle(
+                                fontSize: 11.5, color: _P.muted)),
+                      ],
+                    ),
                   ),
                   const SizedBox(width: 8),
-                  Text(left == null ? '—' : '${(value * 100).round()}%',
+                  Text('${(value * 100).round()}%',
                       style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -620,15 +595,13 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      left == null
-                          ? 'Замена не фиксировалась'
-                          : left >= 0
-                          ? 'Осталось ${fmtKm(left)} км из ${fmtKm(n.intervalKm)}'
-                          : 'Перепробег ${fmtKm(-left)} км · интервал ${fmtKm(n.intervalKm)}',
+                      left >= 0
+                          ? 'Осталось ${fmtKm(left)} км из ${fmtKm(n.normKm)}'
+                          : 'Перепробег ${fmtKm(-left)} км · интервал ${fmtKm(n.normKm)}',
                       style: const TextStyle(fontSize: 12, color: _P.muted),
                     ),
                   ),
-                  Text(left == null ? 'НЕТ ДАННЫХ' : _status(value),
+                  Text(_status(level),
                       style: TextStyle(
                           fontSize: 10,
                           letterSpacing: 0.7,
@@ -636,8 +609,256 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                           color: c)),
                 ],
               ),
+              const SizedBox(height: 8),
+              const Align(
+                alignment: Alignment.centerRight,
+                child: Text('ЗАМЕНИТЬ ›',
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        letterSpacing: 0.5,
+                        fontWeight: FontWeight.w800,
+                        color: _P.accent)),
+              ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Форма «Добавить: Установка» (как на сайте):
+/// машина, запчасть, дата установки, пробег машины при установке.
+class _InstallSheet extends StatefulWidget {
+  final Map<String, dynamic> vehicle;
+  final int mileage;
+  final List<dynamic> types;
+  final int? fixedTypeId; // запчасть уже выбрана (тап по узлу)
+  final String? fixedName;
+  const _InstallSheet({
+    required this.vehicle,
+    required this.mileage,
+    required this.types,
+    this.fixedTypeId,
+    this.fixedName,
+  });
+  @override
+  State<_InstallSheet> createState() => _InstallSheetState();
+}
+
+class _InstallSheetState extends State<_InstallSheet> {
+  late int? _typeId = widget.fixedTypeId;
+  late DateTime _date = () {
+    final n = DateTime.now();
+    return DateTime(n.year, n.month, n.day);
+  }();
+  late final _km = TextEditingController(text: '${widget.mileage}');
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _km.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final d = await showDatePicker(
+      context: context,
+      initialDate: _date,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(now.year, now.month, now.day),
+    );
+    if (d != null) setState(() => _date = d);
+  }
+
+  Future<void> _save() async {
+    if (_typeId == null) {
+      setState(() => _error = 'Выберите запчасть');
+      return;
+    }
+    final km = int.tryParse(_km.text.trim());
+    if (km == null || km < 0) {
+      setState(() => _error = 'Укажите пробег машины при установке');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await Api.addPart(
+        vehicleId: widget.vehicle['id'],
+        partTypeId: _typeId!,
+        installedAt: _iso(_date),
+        mileageAt: km,
+      );
+      if (mounted) Navigator.of(context).pop(true);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Нет связи с сервером');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Widget _label(String t) => Padding(
+    padding: const EdgeInsets.only(bottom: 6, top: 14),
+    child: Text(t,
+        style: const TextStyle(
+            fontSize: 13, fontWeight: FontWeight.w700, color: _P.muted)),
+  );
+
+  Widget _readOnly(String text, {IconData? icon}) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+    decoration: BoxDecoration(
+      color: _P.card2,
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(text,
+              style: const TextStyle(
+                  fontSize: 15, fontWeight: FontWeight.w600, color: _P.text)),
+        ),
+        if (icon != null) Icon(icon, size: 20, color: _P.muted),
+      ],
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final v = widget.vehicle;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Добавить: Установка',
+                style: TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.w800, color: _P.text)),
+            _label('Машина'),
+            _readOnly('${v['plate']} ${v['model']}'),
+            _label('Запчасть'),
+            if (widget.fixedTypeId != null)
+              _readOnly(widget.fixedName ?? '')
+            else
+              LayoutBuilder(
+                builder: (_, c) => DropdownMenu<int>(
+                  width: c.maxWidth,
+                  hintText: 'Начните ввод для поиска...',
+                  enableFilter: true,
+                  requestFocusOnTap: true,
+                  menuHeight: 260,
+                  textStyle: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: _P.text),
+                  inputDecorationTheme: InputDecorationTheme(
+                    filled: true,
+                    fillColor: _P.card2,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 15),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  dropdownMenuEntries: [
+                    for (final t in widget.types)
+                      DropdownMenuEntry<int>(
+                          value: _int(t['id']), label: '${t['name']}'),
+                  ],
+                  onSelected: (id) => setState(() => _typeId = id),
+                ),
+              ),
+            _label('Дата установки'),
+            GestureDetector(
+              onTap: _pickDate,
+              child: _readOnly(_ru(_date), icon: Icons.calendar_today_outlined),
+            ),
+            _label('Пробег машины при установке, км'),
+            TextField(
+              controller: _km,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              onSubmitted: (_) => _save(),
+              style: const TextStyle(
+                  fontSize: 15, fontWeight: FontWeight.w600, color: _P.text),
+              cursorColor: _P.accent,
+              decoration: InputDecoration(
+                suffixText: 'км',
+                filled: true,
+                fillColor: _P.card2,
+                contentPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(_error!,
+                    style: const TextStyle(
+                        color: _P.red, fontWeight: FontWeight.w500)),
+              ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 52,
+                    child: FilledButton(
+                      onPressed: _busy ? null : _save,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _P.accent,
+                        foregroundColor: _P.onAccent,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: _busy
+                          ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2.5, color: Colors.white))
+                          : const Text('СОХРАНИТЬ',
+                          style: TextStyle(
+                              fontSize: 14,
+                              letterSpacing: 0.4,
+                              fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                SizedBox(
+                  height: 52,
+                  child: TextButton(
+                    onPressed: _busy ? null : () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      foregroundColor: _P.muted,
+                      backgroundColor: _P.card2,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: const Text('Отмена',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
