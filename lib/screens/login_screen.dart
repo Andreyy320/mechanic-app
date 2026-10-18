@@ -66,11 +66,11 @@ class _LoginScreenState extends State<LoginScreen> {
       contentPadding: const EdgeInsets.symmetric(vertical: 18),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+        borderSide: const BorderSide(color: kLine),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+        borderSide: const BorderSide(color: kLine),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -94,26 +94,40 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // тот же значок, что в шапке гаража
                     Align(
                       alignment: Alignment.center,
                       child: Container(
                         width: 64,
                         height: 64,
                         decoration: BoxDecoration(
-                          color: kPrimary,
+                          color: kPrimary.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: kPrimary.withOpacity(0.4)),
                         ),
                         child: const Icon(Icons.directions_car_rounded,
-                            color: Colors.white, size: 32),
+                            color: kPrimary, size: 32),
                       ),
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 22),
+                    const Text(
+                      'ГАРАЖ МЕХАНИКА',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        letterSpacing: 1.2,
+                        fontWeight: FontWeight.w800,
+                        color: kPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
                     const Text(
                       'Вход',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 30,
+                        height: 1.1,
+                        fontWeight: FontWeight.w800,
                         color: kText,
                       ),
                     ),
@@ -124,6 +138,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       autofillHints: const [AutofillHints.username],
                       textInputAction: TextInputAction.next,
                       onSubmitted: (_) => _passFocus.requestFocus(),
+                      cursorColor: kPrimary,
+                      style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: kText),
                       decoration:
                       _decoration('Логин', Icons.person_outline_rounded),
                     ),
@@ -135,6 +154,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       autofillHints: const [AutofillHints.password],
                       textInputAction: TextInputAction.done,
                       onSubmitted: (_) => _submit(),
+                      cursorColor: kPrimary,
+                      style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: kText),
                       decoration: _decoration(
                         'Пароль',
                         Icons.lock_outline_rounded,
@@ -154,8 +178,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       Text(
                         _error!,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.red.shade700,
+                        style: const TextStyle(
+                          color: kRed,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -167,6 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: _busy ? null : _submit,
                         style: FilledButton.styleFrom(
                           backgroundColor: kPrimary,
+                          foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
@@ -181,10 +206,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         )
                             : const Text(
-                          'Войти',
+                          'ВОЙТИ',
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            letterSpacing: 0.4,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),

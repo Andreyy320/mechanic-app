@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mechanic_app/screens/parts_screen.dart';
 import 'vehicles_screen.dart';
 import 'service_screen.dart';
 import 'profile_screen.dart';
 import 'ui.dart';
+import 'dart:async';
+import '../services/api.dart';
+import '../services/push.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -11,9 +15,50 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   int _i = 0;
+  Timer? _timer;
 
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    Api.autoSyncMileage(); // при открытии приложения
+    Push.openTab.addListener(_onPushTab); // тап по уведомлению открывает нужную вкладку
+    Push.init();
+    _timer = Timer.periodic(
+        const Duration(minutes: 10), (_) => Api.autoSyncMileage());
+    Api.checkVersion(); // один раз запомнить текущую версию
+    Api.startEvents();  // дальше сервер сам сообщает об изменениях
+
+
+  }
+
+  void _onPushTab() {
+    final i = Push.openTab.value;
+    if (i == null) return;
+    Push.openTab.value = null;
+    if (mounted) setState(() => _i = i);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState s) {
+    if (s == AppLifecycleState.resumed) {
+      Api.autoSyncMileage(); // вернулся в приложение
+      Push.resync(); // держим токен на сервере свежим
+      Api.checkVersion();
+      Api.startEvents();
+    }
+  }
+
+  @override
+  void dispose() {
+    Push.openTab.removeListener(_onPushTab);
+    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
   /// У каждой вкладки свой Navigator: экраны, открытые внутри вкладки
   /// (например, карточка машины), показываются НАД контентом,
   /// а нижняя панель остаётся на месте.
@@ -60,7 +105,7 @@ class _HomeShellState extends State<HomeShell> {
         index: _i,
         children: [
           _tab(0, const VehiclesScreen()),
-          _tab(1, const _Soon('Узлы', 'Ресурс узлов и замены появятся здесь')),
+          _tab(1, const PartsScreen()),
           _tab(2, const ServiceScreen()),
           _tab(3, const ProfileScreen()),
         ],

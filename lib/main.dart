@@ -1,4 +1,7 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'firebase_options.dart';
 import 'services/api.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_shell.dart';
@@ -6,8 +9,16 @@ import 'screens/ui.dart';
 
 final navKey = GlobalKey<NavigatorState>();
 
+/// Вызывается, когда пуш приходит при закрытом или свёрнутом приложении.
+@pragma('vm:entry-point')
+Future<void> _bgHandler(RemoteMessage m) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  FirebaseMessaging.onBackgroundMessage(_bgHandler);
   await Api.loadSaved();
   Api.onUnauthorized = () {
     navKey.currentState?.pushAndRemoveUntil(

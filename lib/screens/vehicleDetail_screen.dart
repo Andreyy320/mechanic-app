@@ -1,9 +1,10 @@
 import 'dart:math' show max;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'mileage_sheet.dart';
+import 'package:mechanic_app/screens/vehicle_form_sheet.dart';
+import 'doc_renew_sheet.dart';
 import '../services/api.dart';
-import 'ui.dart' show daysOf, fmtKm, fmtDate;
+import 'ui.dart' show daysOf, fmtKm, fmtDate, toast;
 
 class _P {
   static const bg = Color(0xFFF6F7FA);
@@ -107,13 +108,39 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
   void initState() {
     super.initState();
     _load();
+    Api.docsChanged.addListener(_onChanged);
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _err = null;
-    });
+  @override
+  void dispose() {
+    Api.docsChanged.removeListener(_onChanged);
+    super.dispose();
+  }
+
+  void _onChanged() {
+    if (mounted) _refresh();
+  }
+
+  /// Тихо подтягивает свежие данные машины и узлов (без крутилки).
+  Future<void> _refresh() async {
+    try {
+      final all = await Api.vehicles();
+      final fresh =
+      all.firstWhere((x) => x['id'] == _v['id'], orElse: () => null);
+      if (fresh != null && mounted) {
+        setState(() => _v.addAll(Map<String, dynamic>.from(fresh)));
+      }
+    } catch (_) {}
+    await _load(silent: true);
+  }
+
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _err = null;
+      });
+    }
     try {
       final res = await Future.wait([Api.partTypes(), Api.parts()]);
       final types = res[0];
@@ -169,9 +196,138 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
 
   int get _mileage => ((_v['mileage'] as num?) ?? 0).round();
 
+  Future<void> _renewDoc(String type) async {
+    final ok = await showRenewSheet(
+      context,
+      vehicle: _v,
+      type: type,
+      currentTo:
+      '${_v[type == 'insurance' ? 'insurance_to' : 'inspection_to'] ?? ''}',
+    );
+    if (ok != true) return;
+    try {
+      final all = await Api.vehicles();
+      final fresh =
+      all.firstWhere((x) => x['id'] == _v['id'], orElse: () => null);
+      if (fresh != null && mounted) {
+        setState(() => _v.addAll(Map<String, dynamic>.from(fresh)));
+      }
+    } catch (_) {}
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Срок продлён, создана новая запись')));
+    }
+  }
+  Future<void> _showActions() async {
+    final act = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: _P.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.edit_outlined, color: _P.text),
+                title: const Text('Изменить',
+                    style: TextStyle(
+                        color: _P.text, fontWeight: FontWeight.w700)),
+                onTap: () => Navigator.pop(ctx, 'edit'),
+              ),
+              ListTile(
+                leading:
+                const Icon(Icons.delete_outline_rounded, color: _P.red),
+                title: const Text('Удалить',
+                    style: TextStyle(
+                        color: _P.red, fontWeight: FontWeight.w700)),
+                onTap: () => Navigator.pop(ctx, 'delete'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (act == 'edit') {
+      await _editVehicle();
+    } else if (act == 'delete') {
+      await _deleteVehicle();
+    }
+  }
+
+
+  Future<void> _editVehicle() async {
+    final ok = await showVehicleForm(context, vehicle: _v);
+    if (ok != true) return;
+    try {
+      final all = await Api.vehicles();
+      final fresh =
+      all.firstWhere((x) => x['id'] == _v['id'], orElse: () => null);
+      if (fresh != null && mounted) {
+        setState(() => _v.addAll(Map<String, dynamic>.from(fresh)));
+      }
+    } catch (_) {}
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Данные сохранены')));
+    }
+  }
+
+  Future<void> _deleteVehicle() async {
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: _P.card,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Подтверждение удаления'),
+        content: Text('Удалить машину ${_v['plate']} вместе с её документами?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Отмена')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child:
+              const Text('Удалить', style: TextStyle(color: _P.red))),
+        ],
+      ),
+    );
+    if (yes != true) return;
+    try {
+      await Api.deleteVehicle((_v['id'] as num).toInt());
+      Api.docsChanged.value++; // обновит вкладку «ТО и доки»
+      if (mounted) Navigator.of(context).pop(); // назад в гараж, он перезагрузится
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Нет связи с сервером')));
+      }
+    }
+  }
   Future<void> _updateMileage() async {
-    final km = await showMileageSheet(context, _v);
-    if (km != null) setState(() => _v['mileage'] = km);
+    final r = await Api.autoSyncMileage(force: true);
+    if (r == null) {
+      if (mounted) toast(context, 'Нет связи с GPS, пробег не обновлён', error: true);
+      return;
+    }
+    try {
+      final all = await Api.vehicles();
+      final fresh =
+      all.firstWhere((x) => x['id'] == _v['id'], orElse: () => null);
+      if (fresh != null && mounted) {
+        setState(() => _v.addAll(Map<String, dynamic>.from(fresh)));
+      }
+    } catch (_) {}
+    if (mounted) toast(context, 'Пробег обновлён');
   }
 
   /// Форма «Добавить: Установка».
@@ -185,7 +341,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => _InstallSheet(
+      builder: (_) => InstallSheet(
         vehicle: _v,
         mileage: _mileage,
         types: _types,
@@ -195,6 +351,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
     );
     if (ok == true) {
       await _load();
+      Api.docsChanged.value++; // <- новая строка
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Установка сохранена')));
@@ -226,6 +383,21 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
             style: const TextStyle(
                 fontSize: 20, fontWeight: FontWeight.w800, color: _P.text)),
         actions: [
+          GestureDetector(
+            onTap: _showActions,
+            child: Container(
+              margin: const EdgeInsets.only(right: 8),
+              width: 36,
+              height: 32,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _P.line),
+              ),
+              child: const Icon(Icons.more_horiz_rounded,
+                  size: 20, color: _P.text),
+            ),
+          ),
           Container(
             margin: const EdgeInsets.only(right: 16),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -466,59 +638,81 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
   }
 
   // ───────── страховка / техосмотр (компактно) ─────────
-
   Widget _docs(Map<String, dynamic> v) {
     return Row(
       children: [
         Expanded(
             child: _docTile(Icons.shield_outlined, 'Страховка',
-                v['insurance_to'], daysOf(v['insurance_days']))),
+                v['insurance_to'], daysOf(v['insurance_days']),
+                    () => _renewDoc('insurance'))),
         const SizedBox(width: 10),
         Expanded(
             child: _docTile(Icons.fact_check_outlined, 'Техосмотр',
-                v['inspection_to'], daysOf(v['inspection_days']))),
+                v['inspection_to'], daysOf(v['inspection_days']),
+                    () => _renewDoc('inspection'))),
       ],
     );
   }
 
-  Widget _docTile(IconData icon, String label, dynamic to, int? days) {
+  Widget _docTile(IconData icon, String label, dynamic to, int? days,
+      VoidCallback onTap) {
     final c = _dc(days);
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: c.withOpacity(0.07),
+    return Material(
+      color: c.withOpacity(0.07),
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: c.withOpacity(0.35)),
+        side: BorderSide(color: c.withOpacity(0.35)),
       ),
-      child: Row(
-        children: [
-          Icon(icon, color: c, size: 22),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: _P.text)),
-                const SizedBox(height: 2),
-                Text(to == null ? 'Нет данных' : 'до ${fmtDate(to)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 11.5, color: _P.muted)),
-              ],
-            ),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Icon(icon, color: c, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label,
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: _P.text)),
+                    const SizedBox(height: 2),
+                    Text(to == null ? 'Нет данных' : 'до ${fmtDate(to)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                        const TextStyle(fontSize: 11.5, color: _P.muted)),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(_dshort(days),
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: c)),
+                  const SizedBox(height: 2),
+                  Text(to == null ? 'ДОБАВИТЬ ›' : 'ПРОДЛИТЬ ›',
+                      style: const TextStyle(
+                          fontSize: 9.5,
+                          letterSpacing: 0.4,
+                          fontWeight: FontWeight.w800,
+                          color: _P.accent)),
+                ],
+              ),
+            ],
           ),
-          Text(_dshort(days),
-              style: TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w800, color: c)),
-        ],
+        ),
       ),
     );
   }
-
   // ───────── карточка узла (тап — форма замены) ─────────
 
   Widget _nodeCard(_Node n, int m) {
@@ -629,13 +823,13 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
 
 /// Форма «Добавить: Установка» (как на сайте):
 /// машина, запчасть, дата установки, пробег машины при установке.
-class _InstallSheet extends StatefulWidget {
+class InstallSheet extends StatefulWidget {
   final Map<String, dynamic> vehicle;
   final int mileage;
   final List<dynamic> types;
   final int? fixedTypeId; // запчасть уже выбрана (тап по узлу)
   final String? fixedName;
-  const _InstallSheet({
+  const InstallSheet({
     required this.vehicle,
     required this.mileage,
     required this.types,
@@ -643,10 +837,10 @@ class _InstallSheet extends StatefulWidget {
     this.fixedName,
   });
   @override
-  State<_InstallSheet> createState() => _InstallSheetState();
+  State<InstallSheet> createState() => InstallSheetState();
 }
 
-class _InstallSheetState extends State<_InstallSheet> {
+class InstallSheetState extends State<InstallSheet> {
   late int? _typeId = widget.fixedTypeId;
   late DateTime _date = () {
     final n = DateTime.now();

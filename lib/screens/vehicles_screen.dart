@@ -1,9 +1,11 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mechanic_app/screens/vehicleDetail_screen.dart';
 import '../services/api.dart';
-import 'mileage_sheet.dart';
-import 'ui.dart' show daysOf, fmtKm, fmtDate;
+import 'vehicle_form_sheet.dart';
+import 'ui.dart' show daysOf, fmtKm, fmtDate, toast;
 
 /// ───── Палитра экрана (светлая тема, меняйте цвета здесь) ─────
 class _P {
@@ -20,6 +22,71 @@ class _P {
 }
 
 enum _Filter { all, overdue, soon }
+
+// ───────── износ запчастей по машине ─────────
+
+/// Сколько отслеживаемых узлов на машине и сколько из них красных / жёлтых
+class _Wear {
+  final int total, red, yellow;
+  const _Wear(this.total, this.red, this.yellow);
+
+  /// 0 — в норме, 1 — скоро замена, 2 — пора менять
+  int get level => red > 0 ? 2 : (yellow > 0 ? 1 : 0);
+}
+
+int _n(dynamic v) =>
+    v is num ? v.round() : (num.tryParse('$v')?.round() ?? 0);
+
+/// Считаем так же, как сайт и «Требует внимания»: по каждой запчасти берём
+/// последнюю установку; красный — осталось ≤ порога 2, жёлтый — ≤ порога 1.
+Map<int, _Wear> _calcWear(List<dynamic> parts, List<dynamic> cars) {
+  final mileage = {for (final c in cars) _n(c['id']): _n(c['mileage'])};
+  final latest = <String, dynamic>{};
+  for (final p in parts) {
+    final k = '${p['vehicle_id']}:${p['part_type_id']}';
+    final c = latest[k];
+    if (c == null) {
+      latest[k] = p;
+      continue;
+    }
+    final cmp = '${p['installed_at']}'.compareTo('${c['installed_at']}');
+    if (cmp > 0 || (cmp == 0 && _n(p['id']) > _n(c['id']))) latest[k] = p;
+  }
+  final total = <int, int>{}, red = <int, int>{}, yellow = <int, int>{};
+  for (final p in latest.values) {
+    final t = p['track'];
+    final untracked = t != null && !(t == true || t == 1 || t == 'true');
+    final norm = _n(p['norm_km']);
+    if (untracked || norm <= 0) continue;
+
+    final vid = _n(p['vehicle_id']);
+    final w2 = _n(p['warn2_km']);
+    final w1 = max(_n(p['warn1_km']), w2);
+    final used = max((mileage[vid] ?? 0) - _n(p['mileage_at']), 0);
+    final left = norm - used;
+
+    // та же логика уровней, что в карточке машины
+    int lvl;
+    if (w1 == 0 && w2 == 0) {
+      final v = left / norm;
+      lvl = v <= 0.2 ? 2 : (v <= 0.5 ? 1 : 0);
+    } else {
+      lvl = left <= w2 ? 2 : (left <= w1 ? 1 : 0);
+    }
+
+    total[vid] = (total[vid] ?? 0) + 1;
+    if (lvl == 2) {
+      red[vid] = (red[vid] ?? 0) + 1;
+    } else if (lvl == 1) {
+      yellow[vid] = (yellow[vid] ?? 0) + 1;
+    }
+  }
+  return {
+    for (final id in total.keys)
+      id: _Wear(total[id]!, red[id] ?? 0, yellow[id] ?? 0)
+  };
+}
+// ───────── сроки документов ─────────
 
 int? _minDays(dynamic v) {
   final a = daysOf(v['insurance_days']);
@@ -56,29 +123,84 @@ String _short(int? d) {
   if (d == 0) return 'сегодня';
   return '$d дн.';
 }
-
+String _ago(dynamic s) {
+  final d = DateTime.tryParse('$s')?.toLocal();
+  if (d == null) return '';
+  final m = DateTime.now().difference(d).inMinutes;
+  if (m < 1) return 'только что';
+  if (m < 60) return '$m мин назад';
+  if (m < 1440) return '${m ~/ 60} ч назад';
+  return '${m ~/ 1440} дн. назад';
+}
 class VehiclesScreen extends StatefulWidget {
+
   const VehiclesScreen({super.key});
   @override
   State<VehiclesScreen> createState() => _VehiclesScreenState();
 }
 
 class _VehiclesScreenState extends State<VehiclesScreen> {
-  late Future<List<dynamic>> _future = Api.vehicles();
+  Map<int, _Wear> _wear = {};
+  late Future<List<dynamic>> _future = _fetch();
   String _query = '';
   _Filter _filter = _Filter.all;
 
-  Future<void> _reload() async {
-    setState(() => _future = Api.vehicles());
-    try {
-      await _future;
-    } catch (_) {}
+  @override
+  void initState() {
+    super.initState();
+    // что-то изменили на другой вкладке или в карточке машины — список обновится сам
+    Api.docsChanged.addListener(_onChanged);
   }
 
-  Future<void> _updateMileage(dynamic v) async {
-    final km = await showMileageSheet(context, v);
-    if (km != null) _reload();
+  @override
+  void dispose() {
+    Api.docsChanged.removeListener(_onChanged);
+    super.dispose();
   }
+
+  void _onChanged() {
+    if (mounted) _reload();
+  }
+
+  /// Машины + износ запчастей. Если запчасти не загрузились — список всё равно покажется.
+  Future<List<dynamic>> _fetch() async {
+    final cars = await Api.vehicles();
+    try {
+      _wear = _calcWear(await Api.parts(), cars);
+    } catch (_) {
+      _wear = {};
+    }
+    return cars;
+  }
+
+  Future<void> _reload() async {
+    final f = _fetch();
+    setState(() {
+      _future = f;
+    });
+    try {
+      await f;
+    } catch (_) {}
+  }
+  bool _syncBusy = false;
+
+  Future<void> _updateMileage(dynamic v) async {
+    if (_syncBusy) return;
+    _syncBusy = true;
+    final r = await Api.autoSyncMileage(force: true); // список обновится сам
+    _syncBusy = false;
+    if (!mounted) return;
+    String msg;
+    if (r == null) {
+      toast(context, 'Нет связи с GPS, пробег не обновлён', error: true);
+    } else if (r is Map &&
+        (r['not_found'] as List?)?.contains(v['plate']) == true) {
+      toast(context, 'Этой машины нет в GPS', error: true);
+    } else {
+      toast(context, 'Пробег обновлён');
+    }
+  }
+
 
   Future<void> _open(dynamic v) async {
     await Navigator.of(context).push(
@@ -87,9 +209,27 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     if (mounted) _reload();
   }
 
-  void _soonMsg() => ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Раздел в разработке')),
-  );
+  Future<void> _addVehicle() async {
+    final ok = await showVehicleForm(context);
+    if (ok == true) {
+      _reload();
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Машина добавлена')));
+      }
+    }
+  }
+
+  /// Для сортировки: чем меньше, тем срочнее (документы и износ)
+  int _urgency(dynamic v) {
+    var d = _minDays(v) ?? 99999;
+    final w = _wear[_n(v['id'])];
+    if (w != null) {
+      if (w.level == 2 && d > 0) d = 0;
+      if (w.level == 1 && d > 30) d = 30;
+    }
+    return d;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -140,6 +280,20 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
           ],
         ),
         actions: [
+          GestureDetector(
+            onTap: _addVehicle,
+            child: Container(
+              margin: const EdgeInsets.only(right: 10),
+              width: 38,
+              height: 38,
+              decoration: const BoxDecoration(
+                color: _P.accent,
+                shape: BoxShape.circle,
+              ),
+              child:
+              const Icon(Icons.add_rounded, color: _P.onAccent, size: 24),
+            ),
+          ),
           Container(
             margin: const EdgeInsets.only(right: 16),
             width: 38,
@@ -178,8 +332,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
             if (q.isEmpty) return true;
             return '${v['plate']} ${v['model']}'.toLowerCase().contains(q);
           }).toList()
-            ..sort((a, b) =>
-                (_minDays(a) ?? 99999).compareTo(_minDays(b) ?? 99999));
+            ..sort((a, b) => _urgency(a).compareTo(_urgency(b)));
 
           final top = <Widget>[
             Row(
@@ -208,40 +361,32 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   ),
                 ),
               )
-            else ...[
-              _hero(list.first),
-              if (list.length > 1) ...[
-                const SizedBox(height: 22),
-                _label('ВСЕ АВТОМОБИЛИ · ${list.length - 1}'),
-              ],
-            ],
-          ];
-          final rest = list.length > 1 ? list.skip(1).toList() : <dynamic>[];
-          final footer = <Widget>[
-            const SizedBox(height: 10),
-            _addButton(),
-            const SizedBox(height: 12),
-            _noteTile(),
+            else
+              _label('ВСЕ АВТОМОБИЛИ · ${list.length}'),
           ];
 
           return RefreshIndicator(
             color: _P.accent,
             backgroundColor: _P.card,
-            onRefresh: _reload,
+            onRefresh: () async {
+              final r = await Api.autoSyncMileage(force: true);
+              await _reload();
+              if (mounted && r is Map) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Пробег обновлён: ${r['updated'] ?? 0} авто')),
+                );
+              }
+            },
             child: ListView.builder(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-              itemCount: top.length + rest.length + footer.length,
+              itemCount: top.length + list.length,
               itemBuilder: (_, i) {
                 if (i < top.length) return top[i];
-                final j = i - top.length;
-                if (j < rest.length) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _compact(rest[j]),
-                  );
-                }
-                return footer[j - rest.length];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _card(list[i - top.length]),
+                );
               },
             ),
           );
@@ -337,18 +482,23 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
             color: color)),
   );
 
-  // ───────── главная карточка ─────────
+  // ───────── карточка машины ─────────
 
-  Widget _hero(dynamic v) {
+  Widget _card(dynamic v) {
     final m = _minDays(v);
-    final attention = m != null && m <= 30;
+    final w = _wear[_n(v['id'])];
+    final wl = w?.level ?? 0;
+    // требует внимания: горят документы или износ запчастей
+    final attention = (m != null && m <= 30) || wl > 0;
+    final ac = ((m != null && m <= 7) || wl == 2) ? _P.red : _P.accent;
+    final mark = attention ? ac : _P.green;
+
     return Material(
       color: _P.card,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(22),
-        side: BorderSide(
-            color: attention ? _sc(m).withOpacity(0.45) : _P.line),
+        side: BorderSide(color: attention ? ac.withOpacity(0.45) : _P.line),
       ),
       child: InkWell(
         onTap: () => _open(v),
@@ -362,17 +512,16 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   Container(
                     width: 7,
                     height: 7,
-                    decoration: BoxDecoration(
-                        color: attention ? _sc(m) : _P.accent,
-                        shape: BoxShape.circle),
+                    decoration:
+                    BoxDecoration(color: mark, shape: BoxShape.circle),
                   ),
                   const SizedBox(width: 8),
-                  Text(attention ? 'ТРЕБУЕТ ВНИМАНИЯ' : 'ОСНОВНОЙ АВТОМОБИЛЬ',
+                  Text(attention ? 'ТРЕБУЕТ ВНИМАНИЯ' : 'В НОРМЕ',
                       style: TextStyle(
                           fontSize: 11,
                           letterSpacing: 1.1,
                           fontWeight: FontWeight.w800,
-                          color: attention ? _sc(m) : _P.accent)),
+                          color: mark)),
                 ],
               ),
             ),
@@ -462,6 +611,13 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                                       fontWeight: FontWeight.w800,
                                       color: _P.text)),
                             ),
+                            if (v['mileage_synced_at'] != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text('С GPS: ${_ago(v['mileage_synced_at'])}',
+                                    style: const TextStyle(
+                                        fontSize: 11.5, color: _P.muted)),
+                              ),
                           ],
                         ),
                       ),
@@ -493,53 +649,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   _docBox(Icons.fact_check_outlined, 'Техосмотр',
                       v['inspection_from'], v['inspection_to'],
                       daysOf(v['inspection_days'])),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 48,
-                          child: OutlinedButton.icon(
-                            onPressed: _soonMsg,
-                            icon: const Icon(Icons.monitor_heart_outlined,
-                                size: 18),
-                            label: const Text('ДИАГНОСТИКА'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: _P.text,
-                              side: const BorderSide(color: _P.line),
-                              textStyle: const TextStyle(
-                                  fontSize: 12.5,
-                                  letterSpacing: 0.4,
-                                  fontWeight: FontWeight.w800),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14)),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: SizedBox(
-                          height: 48,
-                          child: FilledButton.icon(
-                            onPressed: () => _open(v),
-                            icon: const Icon(Icons.menu_book_rounded, size: 18),
-                            label: const Text('ЖУРНАЛ ТО'),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: _P.accent,
-                              foregroundColor: _P.onAccent,
-                              textStyle: const TextStyle(
-                                  fontSize: 12.5,
-                                  letterSpacing: 0.4,
-                                  fontWeight: FontWeight.w800),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14)),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  if (w != null && w.total > 0) _wearBox(w),
                 ],
               ),
             ),
@@ -636,203 +746,71 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     );
   }
 
-  // ───────── обычная карточка ─────────
+  /// Блок износа: одной строкой — в норме / скоро / пора менять
+  Widget _wearBox(_Wear? w) {
+    final has = w != null && w.total > 0;
+    final lv = w?.level ?? 0;
+    final c = !has
+        ? _P.muted
+        : (lv == 2 ? _P.red : (lv == 1 ? _P.accent : _P.green));
+    final tag = !has
+        ? 'НЕТ ДАННЫХ'
+        : (lv == 2 ? 'ПОРА МЕНЯТЬ' : (lv == 1 ? 'СКОРО' : 'В НОРМЕ'));
+    String sub;
+    if (!has) {
+      sub = 'Запчасти не установлены';
+    } else if (lv == 0) {
+      sub = 'Все узлы в порядке';
+    } else {
+      final parts = <String>[
+        if (w.red > 0) 'К замене: ${w.red}',
+        if (w.yellow > 0) 'Скоро: ${w.yellow}',
+      ];
+      sub = parts.join(' · ');
+    }
 
-  Widget _chip(String label, Color c) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-    decoration: BoxDecoration(
-      color: c.withOpacity(0.12),
-      borderRadius: BorderRadius.circular(20),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(color: c, shape: BoxShape.circle)),
-        const SizedBox(width: 6),
-        Text(label,
-            style: TextStyle(
-                fontSize: 12, fontWeight: FontWeight.w700, color: c)),
-      ],
-    ),
-  );
-
-  Widget _compact(dynamic v) {
-    final ins = daysOf(v['insurance_days']);
-    final insp = daysOf(v['inspection_days']);
-    return Material(
-      color: _P.card,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: const BorderSide(color: _P.line),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: c.withOpacity(0.07),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: c.withOpacity(0.35)),
       ),
-      child: InkWell(
-        onTap: () => _open(v),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: _P.accent.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                    child: const Icon(Icons.directions_car_rounded,
-                        color: _P.accent, size: 23),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('${v['model']}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 16.5,
-                                fontWeight: FontWeight.w700,
-                                color: _P.text)),
-                        const SizedBox(height: 2),
-                        Text('${v['plate']}',
-                            style: const TextStyle(
-                                fontSize: 13.5,
-                                letterSpacing: 0.5,
-                                fontWeight: FontWeight.w600,
-                                color: _P.muted)),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right_rounded, color: _P.muted),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                children: [
-                  _chip('Страховка · ${_short(ins)}', _sc(ins)),
-                  _chip('Техосмотр · ${_short(insp)}', _sc(insp)),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-                decoration: BoxDecoration(
-                  color: _P.card2,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('ПРОБЕГ',
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  letterSpacing: 0.9,
-                                  fontWeight: FontWeight.w800,
-                                  color: _P.muted)),
-                          Text('${fmtKm(v['mileage'])} км',
-                              style: const TextStyle(
-                                  fontSize: 19,
-                                  fontWeight: FontWeight.w800,
-                                  color: _P.text)),
-                        ],
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => _updateMileage(v),
-                      icon: const Icon(Icons.sync_rounded, size: 16),
-                      label: const Text('ОБНОВИТЬ'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: _P.accent,
-                        textStyle: const TextStyle(
-                            fontSize: 12,
-                            letterSpacing: 0.4,
-                            fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: c.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(Icons.build_outlined, color: c, size: 20),
           ),
-        ),
-      ),
-    );
-  }
-
-  // ───────── низ экрана ─────────
-
-  Widget _addButton() {
-    return Material(
-      color: _P.accent,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: _soonMsg,
-        child: const SizedBox(
-          height: 56,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.add_circle_outline_rounded,
-                  color: _P.onAccent, size: 22),
-              SizedBox(width: 8),
-              Text('ДОБАВИТЬ АВТОМОБИЛЬ В ГАРАЖ',
-                  style: TextStyle(
-                      fontSize: 13.5,
-                      letterSpacing: 0.4,
-                      fontWeight: FontWeight.w800,
-                      color: _P.onAccent)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _noteTile() {
-    return Material(
-      color: _P.card,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: _P.line),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: _soonMsg,
-        child: const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-          child: Row(
-            children: [
-              Icon(Icons.edit_note_rounded, color: _P.accent, size: 22),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text('Быстрая заметка механика',
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Износ запчастей',
                     style: TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                         color: _P.text)),
-              ),
-              Text('ЗАПИСАТЬ ›',
-                  style: TextStyle(
-                      fontSize: 12,
-                      letterSpacing: 0.5,
-                      fontWeight: FontWeight.w800,
-                      color: _P.accent)),
-            ],
+                const SizedBox(height: 2),
+                Text(sub,
+                    style: const TextStyle(fontSize: 12.5, color: _P.muted)),
+              ],
+            ),
           ),
-        ),
+          const SizedBox(width: 8),
+          Text(tag,
+              style: TextStyle(
+                  fontSize: 11,
+                  letterSpacing: 0.7,
+                  fontWeight: FontWeight.w800,
+                  color: c)),
+        ],
       ),
     );
   }

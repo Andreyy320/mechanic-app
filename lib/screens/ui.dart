@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-const kPrimary = Color(0xFF2563EB);
+/// Основной цвет приложения: тот же, что на экранах (гараж, ТО и доки, узлы).
+const kPrimary = Color(0xFFE08A00);
 const kText = Color(0xFF111827);
 const kMuted = Color(0xFF6B7280);
 const kBg = Color(0xFFF6F7FA);
@@ -14,12 +15,31 @@ ThemeData buildTheme() => ThemeData(
   useMaterial3: true,
   scaffoldBackgroundColor: kBg,
   colorScheme: ColorScheme.fromSeed(seedColor: kPrimary, surface: Colors.white),
+  snackBarTheme: SnackBarThemeData(
+    behavior: SnackBarBehavior.floating,
+    backgroundColor: kText,
+    contentTextStyle: const TextStyle(
+        color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+  ),
   navigationBarTheme: NavigationBarThemeData(
     backgroundColor: Colors.white,
     surfaceTintColor: Colors.transparent,
-    indicatorColor: kPrimary.withOpacity(0.12),
-    labelTextStyle: MaterialStateProperty.all(
-      const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+    indicatorColor: kPrimary.withOpacity(0.14),
+    iconTheme: MaterialStateProperty.resolveWith<IconThemeData?>(
+          (s) => IconThemeData(
+        color: s.contains(MaterialState.selected) ? kPrimary : kMuted,
+      ),
+    ),
+    labelTextStyle: MaterialStateProperty.resolveWith<TextStyle?>(
+          (s) => TextStyle(
+        fontSize: 12,
+        fontWeight: s.contains(MaterialState.selected)
+            ? FontWeight.w700
+            : FontWeight.w600,
+        color: s.contains(MaterialState.selected) ? kText : kMuted,
+      ),
     ),
   ),
 );
@@ -157,4 +177,35 @@ class ResourceBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Красивое уведомление снизу. error: true — красное.
+void toast(BuildContext context, String text, {bool error = false}) {
+  final c = error ? kRed : kGreen;
+  final m = ScaffoldMessenger.of(context);
+  m.hideCurrentSnackBar();
+  m.showSnackBar(SnackBar(
+    behavior: SnackBarBehavior.floating,
+    margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+    backgroundColor: Colors.white,
+    elevation: 6,
+    duration: const Duration(milliseconds: 2500),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(14),
+      side: BorderSide(color: c.withOpacity(0.4)),
+    ),
+    content: Row(
+      children: [
+        Icon(error ? Icons.error_outline_rounded : Icons.check_circle_rounded,
+            color: c, size: 22),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(text,
+              style: const TextStyle(
+                  fontSize: 14, fontWeight: FontWeight.w600, color: kText)),
+        ),
+      ],
+    ),
+  ));
 }
