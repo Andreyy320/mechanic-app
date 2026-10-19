@@ -1,10 +1,12 @@
 import 'dart:math' show min;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/api.dart';
 
 class _P {
   static const card = Color(0xFFFFFFFF);
   static const card2 = Color(0xFFF1F3F7);
+  static const line = Color(0xFFE5E7EB);
   static const text = Color(0xFF111827);
   static const muted = Color(0xFF6B7280);
   static const accent = Color(0xFFE08A00);
@@ -14,11 +16,23 @@ class _P {
 const _names = {'inspection': 'Техосмотр', 'insurance': 'Страховка'};
 const _fromLbl = {'inspection': 'Дата ТО', 'insurance': 'Начало страховки'};
 const _toLbl = {'inspection': 'Следующий ТО', 'insurance': 'Конец страховки'};
-const _months = {'inspection': 6, 'insurance': 12};
+const _defMonths = {'inspection': 6, 'insurance': 12};
 
 String _two(int x) => x.toString().padLeft(2, '0');
 String _iso(DateTime d) => '${d.year}-${_two(d.month)}-${_two(d.day)}';
 String _ru(DateTime d) => '${_two(d.day)}.${_two(d.month)}.${d.year}';
+
+/// «15.03.2026» -> DateTime, либо null, если дата неполная или несуществующая
+DateTime? _parse(String s) {
+  final p = s.trim().split('.');
+  if (p.length != 3 || p[2].length != 4) return null;
+  final d = int.tryParse(p[0]), m = int.tryParse(p[1]), y = int.tryParse(p[2]);
+  if (d == null || m == null || y == null) return null;
+  final r = DateTime(y, m, d);
+  // 31.02 превращается в март — считаем такую дату неверной
+  if (r.year != y || r.month != m || r.day != d) return null;
+  return r;
+}
 
 /// Дата через N месяцев минус один день (как на сайте)
 DateTime _plusMonths(DateTime d, int months) {
@@ -27,6 +41,24 @@ DateTime _plusMonths(DateTime d, int months) {
   final tmm = tm % 12;
   final lastDay = DateTime(ty, tmm + 2, 0).day;
   return DateTime(ty, tmm + 1, min(d.day, lastDay) - 1);
+}
+
+/// Ввод даты цифрами: 15032026 -> 15.03.2026 (точки ставятся сами)
+class _DateFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    final cut = digits.length > 8 ? digits.substring(0, 8) : digits;
+    final b = StringBuffer();
+    for (var i = 0; i < cut.length; i++) {
+      if (i == 2 || i == 4) b.write('.');
+      b.write(cut[i]);
+    }
+    final t = b.toString();
+    return TextEditingValue(
+        text: t, selection: TextSelection.collapsed(offset: t.length));
+  }
 }
 
 /// Форма продления / добавления страховки или техосмотра.
@@ -60,8 +92,9 @@ class _RenewSheet extends StatefulWidget {
 }
 
 class _RenewSheetState extends State<_RenewSheet> {
-  late DateTime _from;
-  late DateTime _to;
+  late final TextEditingController _fromC;
+  late final TextEditingController _toC;
+  late int _months; // выбранная длительность (0 — своя дата окончания)
   bool _busy = false;
   String? _error;
 
@@ -74,31 +107,79 @@ class _RenewSheetState extends State<_RenewSheet> {
   void initState() {
     super.initState();
     final n = DateTime.now();
-    _from = DateTime(n.year, n.month, n.day);
-    _to = _plusMonths(_from, _months[widget.type] ?? 12);
+    final from = DateTime(n.year, n.month, n.day);
+    _months = _defMonths[widget.type] ?? 12;
+    _fromC = TextEditingController(text: _ru(from));
+    _toC = TextEditingController(text: _ru(_plusMonths(from, _months)));
+    _fromC.addListener(_onFromChanged);
   }
 
-  Future<void> _pick(bool from) async {
+  @override
+  void dispose() {
+    _fromC.dispose();
+    _toC.dispose();
+    super.dispose();
+  }
+
+  /// Изменили дату начала — дата окончания пересчитывается (если выбран срок)
+  void _onFromChanged() {
+    if (_months == 0) return;
+    final f = _parse(_fromC.text);
+    if (f == null) return;
+    _toC.text = _ru(_plusMonths(f, _months));
+  }
+
+  Future<void> _pick(TextEditingController c, {required bool isFrom}) async {
     final now = DateTime.now();
+    final init = _parse(c.text) ?? DateTime(now.year, now.month, now.day);
     final d = await showDatePicker(
       context: context,
-      initialDate: from ? _from : _to,
+      initialDate: init,
       firstDate: DateTime(2000),
       lastDate: DateTime(now.year + 15),
+      helpText: isFrom ? 'Дата начала' : 'Дата окончания',
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: Theme.of(ctx).colorScheme.copyWith(
+            primary: _P.accent,
+            onPrimary: Colors.white,
+            surface: Colors.white,
+            onSurface: _P.text,
+            surfaceTint: Colors.transparent,
+          ),
+          datePickerTheme: const DatePickerThemeData(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            headerBackgroundColor: Colors.white,
+            headerForegroundColor: _P.text,
+          ),
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(foregroundColor: _P.accent),
+          ),
+        ),
+        child: child!,
+      ),
     );
     if (d == null) return;
     setState(() {
-      if (from) {
-        _from = d;
-        _to = _plusMonths(d, _months[widget.type] ?? 12);
-      } else {
-        _to = d;
-      }
+      _error = null;
+      if (!isFrom) _months = 0; // дату окончания выбрали руками
+      c.text = _ru(d);
     });
   }
 
   Future<void> _save() async {
-    if (_to.isBefore(_from)) {
+    final from = _parse(_fromC.text);
+    final to = _parse(_toC.text);
+    if (from == null) {
+      setState(() => _error = 'Дата начала введена неверно (например, 15.03.2026)');
+      return;
+    }
+    if (to == null) {
+      setState(() => _error = 'Дата окончания введена неверно (например, 14.03.2027)');
+      return;
+    }
+    if (to.isBefore(from)) {
       setState(() => _error = 'Дата окончания раньше даты начала');
       return;
     }
@@ -110,8 +191,8 @@ class _RenewSheetState extends State<_RenewSheet> {
       await Api.addDocument((widget.vehicle['id'] as num).toInt(), {
         'doc_type': widget.type,
         'title': '',
-        'date_from': _iso(_from),
-        'date_to': _iso(_to),
+        'date_from': _iso(from),
+        'date_to': _iso(to),
       });
       if (mounted) Navigator.of(context).pop(true);
     } on ApiException catch (e) {
@@ -130,30 +211,58 @@ class _RenewSheetState extends State<_RenewSheet> {
             fontSize: 13, fontWeight: FontWeight.w700, color: _P.muted)),
   );
 
-  Widget _field(String text, {IconData? icon, VoidCallback? onTap}) =>
-      GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-          decoration: BoxDecoration(
-            color: _P.card2,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(text,
-                    style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: _P.text)),
-              ),
-              if (icon != null) Icon(icon, size: 20, color: _P.muted),
-            ],
-          ),
+  Widget _readOnly(String text) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+    decoration: BoxDecoration(
+      color: _P.card2,
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Text(text,
+        style: const TextStyle(
+            fontSize: 15, fontWeight: FontWeight.w600, color: _P.text)),
+  );
+
+  /// Поле даты: можно вписать цифрами (точки сами) или нажать на календарь
+  Widget _dateField(TextEditingController c,
+      {required bool isFrom, ValueChanged<String>? onChanged}) {
+    return TextField(
+      controller: c,
+      keyboardType: TextInputType.number,
+      inputFormatters: [_DateFormatter()],
+      onChanged: (v) {
+        if (_error != null) setState(() => _error = null);
+        onChanged?.call(v);
+      },
+      style: const TextStyle(
+          fontSize: 18,
+          letterSpacing: 0.5,
+          fontWeight: FontWeight.w700,
+          color: _P.text),
+      cursorColor: _P.accent,
+      decoration: InputDecoration(
+        hintText: 'ДД.ММ.ГГГГ',
+        hintStyle: const TextStyle(
+            fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFFD1D5DB)),
+        filled: true,
+        fillColor: _P.card2,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
         ),
-      );
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: _P.accent, width: 1.5),
+        ),
+        suffixIcon: IconButton(
+          tooltip: 'Выбрать в календаре',
+          icon: const Icon(Icons.calendar_month_rounded, color: _P.accent),
+          onPressed: () => _pick(c, isFrom: isFrom),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -178,13 +287,18 @@ class _RenewSheetState extends State<_RenewSheet> {
                   style: const TextStyle(fontSize: 13, color: _P.muted)),
             ],
             _lbl('Машина'),
-            _field('${v['plate']} ${v['model']}'),
+            _readOnly('${v['plate']} ${v['model']}'),
             _lbl(_fromLbl[widget.type] ?? 'Начало'),
-            _field(_ru(_from),
-                icon: Icons.calendar_today_outlined, onTap: () => _pick(true)),
+            _dateField(_fromC, isFrom: true),
             _lbl(_toLbl[widget.type] ?? 'Окончание'),
-            _field(_ru(_to),
-                icon: Icons.calendar_today_outlined, onTap: () => _pick(false)),
+            _dateField(
+              _toC,
+              isFrom: false,
+              // вписали дату окончания руками — срок больше не пересчитывается
+              onChanged: (_) {
+                if (_months != 0) setState(() => _months = 0);
+              },
+            ),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12),

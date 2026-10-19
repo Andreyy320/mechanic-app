@@ -67,10 +67,14 @@ String fmtDate(dynamic s) {
   return '${p[2]}.${p[1]}.${p[0]}';
 }
 
+/// За сколько дней до окончания документ становится жёлтым («скоро») и красным («срочно»)
+const int kSoonDays = 7;
+const int kUrgentDays = 0;  // красный: только сегодня (0) или просрочено
+
 Color statusColor(int? d) {
   if (d == null) return kMuted;
-  if (d <= 7) return kRed;
-  if (d <= 30) return kAmber;
+  if (d <= kUrgentDays) return kRed;
+  if (d <= kSoonDays) return kAmber;
   return kGreen;
 }
 
@@ -81,11 +85,11 @@ String daysText(int? d) {
   return '$d дн.';
 }
 
-/// Нужно ли обратить внимание на машину (документ истёк или истекает в ближайшие 30 дней)
+/// Нужно ли обратить внимание на машину (документ истёк или истекает в ближайшие kSoonDays дней)
 bool needsAttention(dynamic v) {
   final a = daysOf(v['insurance_days']);
   final b = daysOf(v['inspection_days']);
-  return (a != null && a <= 30) || (b != null && b <= 30);
+  return (a != null && a <= kSoonDays) || (b != null && b <= kSoonDays);
 }
 
 class StatusPill extends StatelessWidget {

@@ -1,3 +1,4 @@
+import 'dart:ui' show Color;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -14,10 +15,11 @@ class Push {
 
   static final _local = FlutterLocalNotificationsPlugin();
   static const _channel = AndroidNotificationChannel(
-    'main',
+    'main3',
     'Уведомления',
     description: 'Сроки техосмотра и страховки, износ запчастей',
     importance: Importance.high,
+    sound: RawResourceAndroidNotificationSound('notif'),
   );
 
   /// Вызывать после входа. Токен отправляется серверу при КАЖДОМ вызове
@@ -61,7 +63,7 @@ class Push {
   static Future<void> _initLocal() async {
     await _local.initialize(
       settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        android: AndroidInitializationSettings('@drawable/ic_notification'),
       ),
       onDidReceiveNotificationResponse: (r) => _openScreen(r.payload),
     );
@@ -90,6 +92,8 @@ class Push {
           channelDescription: _channel.description,
           importance: Importance.high,
           priority: Priority.high,
+          icon: '@drawable/ic_notification',
+          color: const Color(0xFFE08A00),
           styleInformation: BigTextStyleInformation(body ?? ''),
         ),
       ),

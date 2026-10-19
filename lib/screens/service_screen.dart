@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api.dart';
 import 'doc_renew_sheet.dart';
-import 'ui.dart' show daysOf, fmtDate;
+import 'ui.dart' show daysOf, fmtDate, kSoonDays;
 
 /// Вкладка «ТО и доки»: все машины механика, по каждой — срок техосмотра
 /// и страховки. Сверху те, у кого хуже всего. Тап по документу — продлить.
 /// Цвета как на сайте: нет данных / просрочено — красный,
-/// осталось 30 дней и меньше — жёлтый, иначе зелёный.
+/// осталось kSoonDays дней и меньше — жёлтый, иначе зелёный.
 
 class _P {
   static const bg = Color(0xFFF6F7FA);
@@ -22,10 +22,10 @@ class _P {
 
 enum _Filter { all, overdue, soon }
 
-/// 2 — просрочено или нет данных, 1 — осталось 30 дней и меньше, 0 — в порядке
+/// 2 — просрочено или нет данных, 1 — осталось kSoonDays дней и меньше, 0 — в порядке
 int _lvl(int? d) {
   if (d == null || d < 0) return 2;
-  if (d <= 30) return 1;
+  if (d <= kSoonDays) return 1;
   return 0;
 }
 
@@ -341,7 +341,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
       color: c.withOpacity(0.07),
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-       borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(14),
         side: BorderSide(color: c.withOpacity(0.35)),
       ),
       child: InkWell(

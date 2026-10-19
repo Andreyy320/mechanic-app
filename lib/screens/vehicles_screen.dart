@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:mechanic_app/screens/vehicleDetail_screen.dart';
 import '../services/api.dart';
 import 'vehicle_form_sheet.dart';
-import 'ui.dart' show daysOf, fmtKm, fmtDate, toast;
+import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays;
 
 /// ───── Палитра экрана (светлая тема, меняйте цвета здесь) ─────
 class _P {
@@ -99,21 +99,21 @@ int? _minDays(dynamic v) {
 bool _isOverdue(dynamic v) => (_minDays(v) ?? 1) < 0;
 bool _isSoon(dynamic v) {
   final m = _minDays(v);
-  return m != null && m >= 0 && m <= 30;
+  return m != null && m >= 0 && m <= kSoonDays;
 }
 
 Color _sc(int? d) {
   if (d == null) return _P.muted;
-  if (d <= 7) return _P.red;
-  if (d <= 30) return _P.accent;
+  if (d <= kUrgentDays) return _P.red;
+  if (d <= kSoonDays) return _P.accent;
   return _P.green;
 }
 
 String _tag(int? d) {
   if (d == null) return 'НЕТ ДАННЫХ';
   if (d < 0) return 'ПРОСРОЧЕНО';
-  if (d <= 7) return 'СРОЧНО';
-  if (d <= 30) return 'СКОРО';
+  if (d <= kUrgentDays) return 'СРОЧНО';
+  if (d <= kSoonDays) return 'СКОРО';
   return 'В НОРМЕ';
 }
 
@@ -226,7 +226,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     final w = _wear[_n(v['id'])];
     if (w != null) {
       if (w.level == 2 && d > 0) d = 0;
-      if (w.level == 1 && d > 30) d = 30;
+      if (w.level == 1 && d > kSoonDays) d = kSoonDays;
     }
     return d;
   }
@@ -344,7 +344,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                     'документы', overdue > 0 ? _P.red : _P.muted,
                     _Filter.overdue),
                 const SizedBox(width: 10),
-                _stat(Icons.schedule_rounded, 'СКОРО', soon, 'до 30 дней',
+                _stat(Icons.schedule_rounded, 'СКОРО', soon, 'до $kSoonDays дн.',
                     soon > 0 ? _P.accent : _P.muted, _Filter.soon),
               ],
             ),
@@ -489,8 +489,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     final w = _wear[_n(v['id'])];
     final wl = w?.level ?? 0;
     // требует внимания: горят документы или износ запчастей
-    final attention = (m != null && m <= 30) || wl > 0;
-    final ac = ((m != null && m <= 7) || wl == 2) ? _P.red : _P.accent;
+    final attention = (m != null && m <= kSoonDays) || wl > 0;
+    final ac = ((m != null && m <= kUrgentDays) || wl == 2) ? _P.red : _P.accent;
     final mark = attention ? ac : _P.green;
 
     return Material(

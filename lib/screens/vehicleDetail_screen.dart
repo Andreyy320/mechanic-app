@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:mechanic_app/screens/vehicle_form_sheet.dart';
 import 'doc_renew_sheet.dart';
 import '../services/api.dart';
-import 'ui.dart' show daysOf, fmtKm, fmtDate, toast;
+import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays;
 
 class _P {
   static const bg = Color(0xFFF6F7FA);
@@ -74,8 +74,8 @@ String _status(int level) =>
 
 Color _dc(int? d) {
   if (d == null) return _P.muted;
-  if (d <= 7) return _P.red;
-  if (d <= 30) return _P.accent;
+  if (d <= kUrgentDays) return _P.red;
+  if (d <= kSoonDays) return _P.accent;
   return _P.green;
 }
 
@@ -89,6 +89,35 @@ String _dshort(int? d) {
 String _two(int x) => x.toString().padLeft(2, '0');
 String _iso(DateTime d) => '${d.year}-${_two(d.month)}-${_two(d.day)}';
 String _ru(DateTime d) => '${_two(d.day)}.${_two(d.month)}.${d.year}';
+
+/// «15.03.2026» -> DateTime, либо null, если дата неполная или несуществующая
+DateTime? _parseRu(String s) {
+  final p = s.trim().split('.');
+  if (p.length != 3 || p[2].length != 4) return null;
+  final d = int.tryParse(p[0]), m = int.tryParse(p[1]), y = int.tryParse(p[2]);
+  if (d == null || m == null || y == null) return null;
+  final r = DateTime(y, m, d);
+  if (r.year != y || r.month != m || r.day != d) return null;
+  return r;
+}
+
+/// Ввод даты цифрами: 15032026 -> 15.03.2026 (точки ставятся сами)
+class _DateFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    final cut = digits.length > 8 ? digits.substring(0, 8) : digits;
+    final b = StringBuffer();
+    for (var i = 0; i < cut.length; i++) {
+      if (i == 2 || i == 4) b.write('.');
+      b.write(cut[i]);
+    }
+    final t = b.toString();
+    return TextEditingValue(
+        text: t, selection: TextSelection.collapsed(offset: t.length));
+  }
+}
 
 class VehicleDetailScreen extends StatefulWidget {
   final dynamic vehicle;
@@ -842,34 +871,110 @@ class InstallSheet extends StatefulWidget {
 
 class InstallSheetState extends State<InstallSheet> {
   late int? _typeId = widget.fixedTypeId;
-  late DateTime _date = () {
-    final n = DateTime.now();
-    return DateTime(n.year, n.month, n.day);
-  }();
+  late final _dateC = TextEditingController(text: _ru(DateTime.now()));
   late final _km = TextEditingController(text: '${widget.mileage}');
   bool _busy = false;
   String? _error;
 
   @override
   void dispose() {
+    _dateC.dispose();
     _km.dispose();
     super.dispose();
   }
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    var init = _parseRu(_dateC.text) ?? today;
+    if (init.isAfter(today)) init = today;
     final d = await showDatePicker(
       context: context,
-      initialDate: _date,
+      initialDate: init,
       firstDate: DateTime(2000),
-      lastDate: DateTime(now.year, now.month, now.day),
+      lastDate: today,
+      helpText: 'Дата установки',
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: Theme.of(ctx).colorScheme.copyWith(
+            primary: _P.accent,
+            onPrimary: Colors.white,
+            surface: Colors.white,
+            onSurface: _P.text,
+            surfaceTint: Colors.transparent,
+          ),
+          datePickerTheme: const DatePickerThemeData(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            headerBackgroundColor: Colors.white,
+            headerForegroundColor: _P.text,
+          ),
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(foregroundColor: _P.accent),
+          ),
+        ),
+        child: child!,
+      ),
     );
-    if (d != null) setState(() => _date = d);
+    if (d == null) return;
+    setState(() {
+      _error = null;
+      _dateC.text = _ru(d);
+    });
+  }
+
+  /// Поле даты: можно вписать цифрами (точки сами) или нажать на календарь
+  Widget _dateField() {
+    return TextField(
+      controller: _dateC,
+      keyboardType: TextInputType.number,
+      inputFormatters: [_DateFormatter()],
+      onChanged: (_) {
+        if (_error != null) setState(() => _error = null);
+      },
+      style: const TextStyle(
+          fontSize: 18,
+          letterSpacing: 0.5,
+          fontWeight: FontWeight.w700,
+          color: _P.text),
+      cursorColor: _P.accent,
+      decoration: InputDecoration(
+        hintText: 'ДД.ММ.ГГГГ',
+        hintStyle: const TextStyle(
+            fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFFD1D5DB)),
+        filled: true,
+        fillColor: _P.card2,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: _P.accent, width: 1.5),
+        ),
+        suffixIcon: IconButton(
+          tooltip: 'Выбрать в календаре',
+          icon: const Icon(Icons.calendar_month_rounded, color: _P.accent),
+          onPressed: _pickDate,
+        ),
+      ),
+    );
   }
 
   Future<void> _save() async {
     if (_typeId == null) {
       setState(() => _error = 'Выберите запчасть');
+      return;
+    }
+    final date = _parseRu(_dateC.text);
+    if (date == null) {
+      setState(() => _error = 'Дата установки введена неверно (например, 15.03.2026)');
+      return;
+    }
+    final now = DateTime.now();
+    if (date.isAfter(DateTime(now.year, now.month, now.day))) {
+      setState(() => _error = 'Дата установки не может быть в будущем');
       return;
     }
     final km = int.tryParse(_km.text.trim());
@@ -885,7 +990,7 @@ class InstallSheetState extends State<InstallSheet> {
       await Api.addPart(
         vehicleId: widget.vehicle['id'],
         partTypeId: _typeId!,
-        installedAt: _iso(_date),
+        installedAt: _iso(date),
         mileageAt: km,
       );
       if (mounted) Navigator.of(context).pop(true);
@@ -974,10 +1079,7 @@ class InstallSheetState extends State<InstallSheet> {
                 ),
               ),
             _label('Дата установки'),
-            GestureDetector(
-              onTap: _pickDate,
-              child: _readOnly(_ru(_date), icon: Icons.calendar_today_outlined),
-            ),
+            _dateField(),
             _label('Пробег машины при установке, км'),
             TextField(
               controller: _km,

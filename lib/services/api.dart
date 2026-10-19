@@ -70,7 +70,7 @@ class Api {
         .post(
       Uri.parse('$baseUrl/login'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'login': login, 'password': password}),
+      body: jsonEncode({'login': login, 'password': password, 'client': 'app'}),
     )
         .timeout(_timeout);
     final data = _decode(r.body);
