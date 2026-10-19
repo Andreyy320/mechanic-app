@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api.dart';
 import 'doc_renew_sheet.dart';
-import 'ui.dart' show daysOf, fmtDate, kSoonDays, kUrgentDays;
+import 'ui.dart' show daysOf, fmtDate, kSoonDays, kUrgentDays, PlateBadge;
 
 /// Вкладка «ТО и доки»: все машины механика, по каждой — срок техосмотра
 /// и страховки. Сверху те, у кого хуже всего. Тап по документу — продлить.
@@ -322,21 +322,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
                           color: _P.text)),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(7),
-                    border: Border.all(color: _P.text),
-                  ),
-                  child: Text('${v['plate']}',
-                      style: const TextStyle(
-                          fontSize: 12.5,
-                          letterSpacing: 0.8,
-                          fontWeight: FontWeight.w800,
-                          color: _P.text)),
-                ),
+                PlateBadge('${v['plate']}', fs: 12.5),
               ],
             ),
           ),

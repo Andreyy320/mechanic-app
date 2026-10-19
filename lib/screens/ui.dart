@@ -213,3 +213,45 @@ void toast(BuildContext context, String text, {bool error = false}) {
     ),
   ));
 }
+/// Номерной знак: белая плашка с двойной рамкой, как на настоящем номере
+class PlateBadge extends StatelessWidget {
+  final String plate;
+  final double fs;
+  const PlateBadge(this.plate, {super.key, this.fs = 13});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: kText, width: 1.6),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.10),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: fs * 0.7, vertical: fs * 0.25),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(5),
+          border: Border.all(color: kText.withOpacity(0.25), width: 0.8),
+        ),
+        child: Text(
+          plate.toUpperCase(),
+          style: TextStyle(
+            fontSize: fs,
+            height: 1.1,
+            letterSpacing: fs * 0.12,
+            fontWeight: FontWeight.w800,
+            color: kText,
+          ),
+        ),
+      ),
+    );
+  }
+}

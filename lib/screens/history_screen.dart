@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api.dart';
-import 'ui.dart' show fmtKm, fmtDate;
+import 'ui.dart' show fmtKm, fmtDate, PlateBadge;
 
 class _P {
   static const bg = Color(0xFFF6F7FA);
@@ -22,21 +22,7 @@ OutlineInputBorder _b(Color c, [double w = 1]) => OutlineInputBorder(
   borderSide: BorderSide(color: c, width: w),
 );
 
-Widget _plate(String p, {double fs = 12.5}) => Container(
-  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-  decoration: BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(7),
-    border: Border.all(color: _P.text),
-  ),
-  child: Text(p,
-      style: TextStyle(
-          fontSize: fs,
-          letterSpacing: 0.8,
-          fontWeight: FontWeight.w800,
-          color: _P.text)),
-);
-
+Widget _plate(String p, {double fs = 12.5}) => PlateBadge(p, fs: fs);
 // ───────────────────────── список машин ─────────────────────────
 
 class HistoryScreen extends StatefulWidget {

@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mechanic_app/screens/vehicle_form_sheet.dart';
 import 'doc_renew_sheet.dart';
-import '../services/api.dart';
-import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays;
+import '../services/api.dart';import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays, PlateBadge;
 
 class _P {
   static const bg = Color(0xFFF6F7FA);
@@ -427,20 +426,9 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                   size: 20, color: _P.text),
             ),
           ),
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(7),
-              border: Border.all(color: _P.text),
-            ),
-            child: Text('${v['plate']}',
-                style: const TextStyle(
-                    fontSize: 13,
-                    letterSpacing: 0.8,
-                    fontWeight: FontWeight.w800,
-                    color: _P.text)),
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: PlateBadge('${v['plate']}', fs: 13),
           ),
         ],
       ),

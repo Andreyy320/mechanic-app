@@ -2,7 +2,7 @@ import 'dart:math' show max, min;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api.dart';
-import 'ui.dart' show fmtKm, fmtDate;
+import 'ui.dart' show fmtKm, fmtDate, PlateBadge;
 import 'vehicleDetail_screen.dart' show InstallSheet;
 
 /// Вкладка «Узлы» — рабочий список «что менять».
@@ -471,20 +471,7 @@ class _PartsScreenState extends State<PartsScreen> {
 
   // ───────── группа: машина или запчасть ─────────
 
-  Widget _plate(String p, {double fs = 12}) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(7),
-      border: Border.all(color: _P.text),
-    ),
-    child: Text(p,
-        style: TextStyle(
-            fontSize: fs,
-            letterSpacing: 0.7,
-            fontWeight: FontWeight.w800,
-            color: _P.text)),
-  );
+  Widget _plate(String p, {double fs = 12}) => PlateBadge(p, fs: fs);
 
   Widget _count(int n, Color c) => Container(
     margin: const EdgeInsets.only(left: 6),

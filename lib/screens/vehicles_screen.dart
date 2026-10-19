@@ -5,8 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:mechanic_app/screens/vehicleDetail_screen.dart';
 import '../services/api.dart';
 import 'vehicle_form_sheet.dart';
-import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays;
-
+import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays, PlateBadge;
 /// ───── Палитра экрана (светлая тема, меняйте цвета здесь) ─────
 class _P {
   static const bg = Color(0xFFF6F7FA);
@@ -554,21 +553,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   Positioned(
                     right: 12,
                     top: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(7),
-                        border: Border.all(color: const Color(0xFF111827)),
-                      ),
-                      child: Text('${v['plate']}',
-                          style: const TextStyle(
-                              fontSize: 13,
-                              letterSpacing: 0.8,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF111827))),
-                    ),
+                    child: PlateBadge('${v['plate']}', fs: 14),
                   ),
                   Positioned(
                     left: 14,
