@@ -205,7 +205,7 @@ class Api {
   /// Ответ: updated, unchanged, lower, not_found_count, changes[], ...
   static Future<dynamic> syncMileageGps() => _send('POST', '/mileage-sync');
 
-
+  static dynamic _lastResult;
   static DateTime? _lastSync;
   static Future<dynamic>? _inflight;
 
@@ -218,13 +218,15 @@ class Api {
     if (token == null) return Future.value(null);
     if (_inflight != null) return _inflight!;
     final now = DateTime.now();
-    if (!force && _lastSync != null && now.difference(_lastSync!) < minGap) {
-      return Future.value(null);
+    final gap = force ? const Duration(seconds: 30) : minGap;
+    if (_lastSync != null && now.difference(_lastSync!) < gap) {
+      return Future.value(force ? _lastResult : null);
     }
     _inflight = () async {
       try {
         final r = await syncMileageGps();
         _lastSync = DateTime.now();
+        _lastResult = r;
         if (r is Map && ((r['updated'] as num?) ?? 0) > 0) docsChanged.value++;
         return r;
       } catch (_) {

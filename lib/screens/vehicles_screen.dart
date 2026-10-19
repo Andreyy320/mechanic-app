@@ -96,11 +96,7 @@ int? _minDays(dynamic v) {
   return a < b ? a : b;
 }
 
-bool _isOverdue(dynamic v) => (_minDays(v) ?? 1) < 0;
-bool _isSoon(dynamic v) {
-  final m = _minDays(v);
-  return m != null && m >= 0 && m <= kSoonDays;
-}
+
 
 Color _sc(int? d) {
   if (d == null) return _P.muted;
@@ -123,6 +119,7 @@ String _short(int? d) {
   if (d == 0) return 'сегодня';
   return '$d дн.';
 }
+
 String _ago(dynamic s) {
   final d = DateTime.tryParse('$s')?.toLocal();
   if (d == null) return '';
@@ -192,10 +189,10 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     if (!mounted) return;
     String msg;
     if (r == null) {
-      toast(context, 'Нет связи с GPS, пробег не обновлён', error: true);
+      toast(context, 'Не удалось обновить пробег', error: true);
     } else if (r is Map &&
         (r['not_found'] as List?)?.contains(v['plate']) == true) {
-      toast(context, 'Этой машины нет в GPS', error: true);
+      toast(context, 'Для этой машины нет данных о пробеге', error: true);
     } else {
       toast(context, 'Пробег обновлён');
     }
@@ -219,7 +216,21 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       }
     }
   }
+  /// Просрочено: документ истёк ИЛИ запчасть в красной зоне
+  bool _isOverdue(dynamic v) {
+    final docs = (_minDays(v) ?? 1) < 0;
+    final parts = (_wear[_n(v['id'])]?.level ?? 0) == 2;
+    return docs || parts;
+  }
 
+  /// Скоро: ничего не просрочено, но документ истекает скоро ИЛИ запчасть в жёлтой зоне
+  bool _isSoon(dynamic v) {
+    if (_isOverdue(v)) return false;
+    final m = _minDays(v);
+    final docs = m != null && m >= 0 && m <= kSoonDays;
+    final parts = (_wear[_n(v['id'])]?.level ?? 0) == 1;
+    return docs || parts;
+  }
   /// Для сортировки: чем меньше, тем срочнее (документы и износ)
   int _urgency(dynamic v) {
     var d = _minDays(v) ?? 99999;
@@ -230,12 +241,17 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     }
     return d;
   }
-
+  /// Ближайший срок сверху; при равенстве — у кого больше красных запчастей, затем по номеру
+  int _cmp(dynamic a, dynamic b) {
+    final c = _urgency(a).compareTo(_urgency(b));
+    if (c != 0) return c;
+    final ra = _wear[_n(a['id'])]?.red ?? 0;
+    final rb = _wear[_n(b['id'])]?.red ?? 0;
+    if (ra != rb) return rb.compareTo(ra);
+    return '${a['plate']}'.compareTo('${b['plate']}');
+  }
   @override
   Widget build(BuildContext context) {
-    final initial = (Api.name?.trim().isNotEmpty ?? false)
-        ? Api.name!.trim()[0].toUpperCase()
-        : 'M';
     return Scaffold(
       backgroundColor: _P.bg,
       appBar: AppBar(
@@ -263,13 +279,13 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('ГАРАЖ МЕХАНИКА',
+                const Text('УЧЕТ АВТОПАРКА',
                     style: TextStyle(
                         fontSize: 10.5,
                         letterSpacing: 1.2,
                         fontWeight: FontWeight.w800,
                         color: _P.accent)),
-                Text(Api.name ?? 'Гараж',
+                Text(Api.name ?? 'Машины',
                     style: const TextStyle(
                         fontSize: 22,
                         height: 1.1,
@@ -283,7 +299,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
           GestureDetector(
             onTap: _addVehicle,
             child: Container(
-              margin: const EdgeInsets.only(right: 10),
+              margin: const EdgeInsets.only(right: 16),
               width: 38,
               height: 38,
               decoration: const BoxDecoration(
@@ -294,22 +310,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               const Icon(Icons.add_rounded, color: _P.onAccent, size: 24),
             ),
           ),
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            width: 38,
-            height: 38,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: _P.card,
-              shape: BoxShape.circle,
-              border: Border.all(color: _P.accent.withOpacity(0.6)),
-            ),
-            child: Text(initial,
-                style: const TextStyle(
-                    color: _P.accent,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 15)),
-          ),
+
         ],
       ),
       body: FutureBuilder<List<dynamic>>(
@@ -332,16 +333,16 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
             if (q.isEmpty) return true;
             return '${v['plate']} ${v['model']}'.toLowerCase().contains(q);
           }).toList()
-            ..sort((a, b) => _urgency(a).compareTo(_urgency(b)));
+            ..sort(_cmp);
 
           final top = <Widget>[
             Row(
               children: [
-                _stat(Icons.directions_car_rounded, 'В ГАРАЖЕ', all.length,
+                _stat(Icons.directions_car_rounded, 'ВСЕГО', all.length,
                     'активных авто', _P.accent, _Filter.all),
                 const SizedBox(width: 10),
                 _stat(Icons.error_outline_rounded, 'ПРОСРОЧЕНО', overdue,
-                    'документы', overdue > 0 ? _P.red : _P.muted,
+                    'документы и узлы', overdue > 0 ? _P.red : _P.muted,
                     _Filter.overdue),
                 const SizedBox(width: 10),
                 _stat(Icons.schedule_rounded, 'СКОРО', soon, 'до $kSoonDays дн.',
@@ -412,23 +413,24 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 color: selected ? c : _P.line, width: selected ? 1.5 : 1),
           ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                children: [
-                  Icon(icon, size: 14, color: c),
-                  const SizedBox(width: 5),
-                  Expanded(
-                    child: Text(label,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, size: 14, color: c),
+                    const SizedBox(width: 5),
+                    Text(label,
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                             fontSize: 10,
                             letterSpacing: 0.6,
                             fontWeight: FontWeight.w800,
                             color: _P.muted)),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(height: 8),
               Text('$n',
@@ -438,10 +440,12 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                       fontWeight: FontWeight.w800,
                       color: c)),
               const SizedBox(height: 4),
-              Text(caption,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11, color: _P.muted)),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(caption,
+                    maxLines: 1,
+                    style: const TextStyle(fontSize: 11, color: _P.muted)),
+              ),
             ],
           ),
         ),
@@ -614,7 +618,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                             if (v['mileage_synced_at'] != null)
                               Padding(
                                 padding: const EdgeInsets.only(top: 2),
-                                child: Text('С GPS: ${_ago(v['mileage_synced_at'])}',
+                                child: Text('Обновлено: ${_ago(v['mileage_synced_at'])}',
                                     style: const TextStyle(
                                         fontSize: 11.5, color: _P.muted)),
                               ),

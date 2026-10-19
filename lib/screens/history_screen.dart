@@ -12,7 +12,7 @@ class _P {
   static const muted = Color(0xFF6B7280);
   static const accent = Color(0xFFE08A00);
   static const green = Color(0xFF16A34A);
-  static const blue = Color(0xFF2563EB);
+  static const blue = Color(0xFF475569);
 }
 
 int _n(dynamic v) => v is num ? v.round() : (num.tryParse('$v')?.round() ?? 0);
@@ -407,17 +407,20 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
     return Column(
       children: [
         SizedBox(
-          height: 40,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
+          height: 58,
+          child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            children: [
-              _chip('Все', _all.length, null, _P.text),
-              _chip('Запчасти', cnt(_Kind.part), _Kind.part, _P.accent),
-              _chip('ТО', cnt(_Kind.inspection), _Kind.inspection, _P.green),
-              _chip('Страховка', cnt(_Kind.insurance), _Kind.insurance,
-                  _P.blue),
-            ],
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _chip('Все', _all.length, null, _P.text),
+                _chip('Запчасти', cnt(_Kind.part), _Kind.part, _P.accent),
+                _chip('ТО', cnt(_Kind.inspection), _Kind.inspection,
+                    _P.green),
+                _chip('Страховка', cnt(_Kind.insurance), _Kind.insurance,
+                    _P.blue),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 6),
@@ -466,23 +469,41 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
 
   Widget _chip(String label, int n, _Kind? k, Color c) {
     final sel = _filter == k;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: GestureDetector(
-        onTap: () => setState(() => _filter = k),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: sel ? c.withOpacity(0.1) : _P.card,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: sel ? c : _P.line, width: sel ? 1.5 : 1),
+    return Expanded(
+      child: Padding(
+        padding: EdgeInsets.only(right: k == _Kind.insurance ? 0 : 8),
+        child: GestureDetector(
+          onTap: () => setState(() => _filter = k),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: sel ? c.withOpacity(0.1) : _P.card,
+              borderRadius: BorderRadius.circular(12),
+              border:
+              Border.all(color: sel ? c : _P.line, width: sel ? 1.5 : 1),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('$n',
+                    style: TextStyle(
+                        fontSize: 18,
+                        height: 1.1,
+                        fontWeight: FontWeight.w800,
+                        color: sel ? c : _P.text)),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(label,
+                      maxLines: 1,
+                      style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: _P.muted)),
+                ),
+              ],
+            ),
           ),
-          child: Text('$label · $n',
-              style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: sel ? c : _P.muted)),
         ),
       ),
     );

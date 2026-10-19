@@ -44,7 +44,7 @@ class MechanicApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       navigatorKey: navKey,
-      title: 'Механик',
+      title: 'Автопарк',
       theme: buildTheme(),
       // Интерфейс всегда строится на эталонной ширине kDesignWidth и затем
       // пропорционально растягивается на экран. Поэтому «Размер экрана»,

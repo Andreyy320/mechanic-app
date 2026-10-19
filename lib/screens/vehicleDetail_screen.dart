@@ -345,7 +345,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
   Future<void> _updateMileage() async {
     final r = await Api.autoSyncMileage(force: true);
     if (r == null) {
-      if (mounted) toast(context, 'Нет связи с GPS, пробег не обновлён', error: true);
+      if (mounted) toast(context, 'Не удалось обновить пробег', error: true);
       return;
     }
     try {
@@ -589,7 +589,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                     const SizedBox(height: 3),
                     Text(
                         has
-                            ? 'Агрегат по ${_nodes.length} узлам'
+                            ? 'Средний ресурс · узлов: ${_nodes.length}'
                             : 'Нет данных об установке',
                         style:
                         const TextStyle(fontSize: 12.5, color: _P.muted)),
@@ -697,37 +697,44 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, color: c, size: 22),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(label,
-                        style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: _P.text)),
-                    const SizedBox(height: 2),
-                    Text(to == null ? 'Нет данных' : 'до ${fmtDate(to)}',
+              Row(
+                children: [
+                  Icon(icon, color: c, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style:
-                        const TextStyle(fontSize: 11.5, color: _P.muted)),
-                  ],
-                ),
+                        style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: _P.text)),
+                  ),
+                ],
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              const SizedBox(height: 6),
+              Text(to == null ? 'Нет данных' : 'до ${fmtDate(to)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, color: _P.muted)),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(_dshort(days),
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: c)),
-                  const SizedBox(height: 2),
+                  Flexible(
+                    child: Text(_dshort(days),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: c)),
+                  ),
+                  const SizedBox(width: 4),
                   Text(to == null ? 'ДОБАВИТЬ ›' : 'ПРОДЛИТЬ ›',
                       style: const TextStyle(
                           fontSize: 9.5,
@@ -814,33 +821,37 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                 ),
               ),
               const SizedBox(height: 10),
+              Text(
+                left >= 0
+                    ? 'Осталось ${fmtKm(left)} км из ${fmtKm(n.normKm)}'
+                    : 'Перепробег ${fmtKm(-left)} км · интервал ${fmtKm(n.normKm)}',
+                style: const TextStyle(fontSize: 12, color: _P.muted),
+              ),
+              const SizedBox(height: 10),
               Row(
                 children: [
-                  Expanded(
-                    child: Text(
-                      left >= 0
-                          ? 'Осталось ${fmtKm(left)} км из ${fmtKm(n.normKm)}'
-                          : 'Перепробег ${fmtKm(-left)} км · интервал ${fmtKm(n.normKm)}',
-                      style: const TextStyle(fontSize: 12, color: _P.muted),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: c.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
                     ),
+                    child: Text(_status(level),
+                        style: TextStyle(
+                            fontSize: 10,
+                            letterSpacing: 0.7,
+                            fontWeight: FontWeight.w800,
+                            color: c)),
                   ),
-                  Text(_status(level),
+                  const Spacer(),
+                  const Text('ЗАМЕНИТЬ ›',
                       style: TextStyle(
-                          fontSize: 10,
-                          letterSpacing: 0.7,
+                          fontSize: 11.5,
+                          letterSpacing: 0.5,
                           fontWeight: FontWeight.w800,
-                          color: c)),
+                          color: _P.accent)),
                 ],
-              ),
-              const SizedBox(height: 8),
-              const Align(
-                alignment: Alignment.centerRight,
-                child: Text('ЗАМЕНИТЬ ›',
-                    style: TextStyle(
-                        fontSize: 11.5,
-                        letterSpacing: 0.5,
-                        fontWeight: FontWeight.w800,
-                        color: _P.accent)),
               ),
             ],
           ),

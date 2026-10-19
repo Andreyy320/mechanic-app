@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api.dart';
 import 'doc_renew_sheet.dart';
-import 'ui.dart' show daysOf, fmtDate, kSoonDays;
+import 'ui.dart' show daysOf, fmtDate, kSoonDays, kUrgentDays;
 
 /// Вкладка «ТО и доки»: все машины механика, по каждой — срок техосмотра
 /// и страховки. Сверху те, у кого хуже всего. Тап по документу — продлить.
@@ -24,8 +24,8 @@ enum _Filter { all, overdue, soon }
 
 /// 2 — просрочено или нет данных, 1 — осталось kSoonDays дней и меньше, 0 — в порядке
 int _lvl(int? d) {
-  if (d == null || d < 0) return 2;
-  if (d <= kSoonDays) return 1;
+  if (d == null || d <= kUrgentDays) return 2; // нет данных, сегодня или просрочено
+  if (d <= kSoonDays) return 1;                // 1..7 дней
   return 0;
 }
 
@@ -48,6 +48,22 @@ int _urgency(dynamic v) {
   final a = _insDays(v), b = _inspDays(v);
   final x = a ?? -1000000, y = b ?? -1000000;
   return x < y ? x : y;
+}
+
+
+/// Срок второго (более далёкого) документа — для разбора ничьих
+int _second(dynamic v) {
+  final x = _insDays(v) ?? -1000000, y = _inspDays(v) ?? -1000000;
+  return x < y ? y : x;
+}
+
+/// Ближайший срок сверху; при равенстве — по второму документу, затем по номеру
+int _cmp(dynamic a, dynamic b) {
+  final c = _urgency(a).compareTo(_urgency(b));
+  if (c != 0) return c;
+  final s = _second(a).compareTo(_second(b));
+  if (s != 0) return s;
+  return '${a['plate']}'.compareTo('${b['plate']}');
 }
 
 bool _isOverdue(dynamic v) => _lvl(_insDays(v)) == 2 || _lvl(_inspDays(v)) == 2;
@@ -164,7 +180,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
       if (q.isEmpty) return true;
       return '${v['plate']} ${v['model']}'.toLowerCase().contains(q);
     }).toList()
-      ..sort((a, b) => _urgency(a).compareTo(_urgency(b)));
+      ..sort(_cmp);
 
     return Column(
       children: [
