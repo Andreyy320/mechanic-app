@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/net.dart';
 
 /// Основной цвет приложения: тот же, что на экранах (гараж, ТО и доки, узлы).
 const kPrimary = Color(0xFFE08A00);
@@ -249,6 +250,58 @@ class PlateBadge extends StatelessWidget {
             letterSpacing: fs * 0.12,
             fontWeight: FontWeight.w800,
             color: kText,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Красная плашка сверху, пока нет соединения. Сама исчезает, когда сеть вернулась.
+class OfflineBanner extends StatelessWidget {
+  const OfflineBanner({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: Net.online,
+      builder: (_, on, __) => AnimatedSize(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        child: on
+            ? const SizedBox(width: double.infinity)
+            : Material(
+          color: kRed,
+          child: SafeArea(
+            bottom: false,
+            child: InkWell(
+              onTap: Net.check,
+              child: const Padding(
+                padding:
+                EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                child: Row(
+                  children: [
+                    Icon(Icons.cloud_off_rounded,
+                        color: Colors.white, size: 18),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                          'Нет соединения. Данные могут быть устаревшими',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                    Text('ПОВТОРИТЬ',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            letterSpacing: 0.5,
+                            fontWeight: FontWeight.w800)),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       ),

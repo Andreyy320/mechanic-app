@@ -80,7 +80,7 @@ Color _dc(int? d) {
 
 String _dshort(int? d) {
   if (d == null) return '—';
-  if (d < 0) return '−${-d} дн.';
+  if (d < 0) return '${-d} дн.';
   if (d == 0) return 'сегодня';
   return '$d дн.';
 }

@@ -24,10 +24,10 @@ enum _Filter { all, overdue, soon }
 
 // ───────── износ запчастей по машине ─────────
 
-/// Сколько отслеживаемых узлов на машине и сколько из них красных / жёлтых
 class _Wear {
   final int total, red, yellow;
-  const _Wear(this.total, this.red, this.yellow);
+  final double avg; // средний остаток ресурса узлов, 0..1
+  const _Wear(this.total, this.red, this.yellow, this.avg);
 
   /// 0 — в норме, 1 — скоро замена, 2 — пора менять
   int get level => red > 0 ? 2 : (yellow > 0 ? 1 : 0);
@@ -36,8 +36,6 @@ class _Wear {
 int _n(dynamic v) =>
     v is num ? v.round() : (num.tryParse('$v')?.round() ?? 0);
 
-/// Считаем так же, как сайт и «Требует внимания»: по каждой запчасти берём
-/// последнюю установку; красный — осталось ≤ порога 2, жёлтый — ≤ порога 1.
 Map<int, _Wear> _calcWear(List<dynamic> parts, List<dynamic> cars) {
   final mileage = {for (final c in cars) _n(c['id']): _n(c['mileage'])};
   final latest = <String, dynamic>{};
@@ -52,6 +50,7 @@ Map<int, _Wear> _calcWear(List<dynamic> parts, List<dynamic> cars) {
     if (cmp > 0 || (cmp == 0 && _n(p['id']) > _n(c['id']))) latest[k] = p;
   }
   final total = <int, int>{}, red = <int, int>{}, yellow = <int, int>{};
+  final sum = <int, double>{};
   for (final p in latest.values) {
     final t = p['track'];
     final untracked = t != null && !(t == true || t == 1 || t == 'true');
@@ -64,7 +63,6 @@ Map<int, _Wear> _calcWear(List<dynamic> parts, List<dynamic> cars) {
     final used = max((mileage[vid] ?? 0) - _n(p['mileage_at']), 0);
     final left = norm - used;
 
-    // та же логика уровней, что в карточке машины
     int lvl;
     if (w1 == 0 && w2 == 0) {
       final v = left / norm;
@@ -74,6 +72,7 @@ Map<int, _Wear> _calcWear(List<dynamic> parts, List<dynamic> cars) {
     }
 
     total[vid] = (total[vid] ?? 0) + 1;
+    sum[vid] = (sum[vid] ?? 0) + (left / norm).clamp(0.0, 1.0).toDouble();
     if (lvl == 2) {
       red[vid] = (red[vid] ?? 0) + 1;
     } else if (lvl == 1) {
@@ -82,7 +81,8 @@ Map<int, _Wear> _calcWear(List<dynamic> parts, List<dynamic> cars) {
   }
   return {
     for (final id in total.keys)
-      id: _Wear(total[id]!, red[id] ?? 0, yellow[id] ?? 0)
+      id: _Wear(total[id]!, red[id] ?? 0, yellow[id] ?? 0,
+          sum[id]! / total[id]!)
   };
 }
 // ───────── сроки документов ─────────
@@ -114,7 +114,7 @@ String _tag(int? d) {
 
 String _short(int? d) {
   if (d == null) return '—';
-  if (d < 0) return '−${-d} дн.';
+  if (d < 0) return '${-d} дн.';
   if (d == 0) return 'сегодня';
   return '$d дн.';
 }
@@ -217,7 +217,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   }
   /// Просрочено: документ истёк ИЛИ запчасть в красной зоне
   bool _isOverdue(dynamic v) {
-    final docs = (_minDays(v) ?? 1) < 0;
+    final m = _minDays(v);
+    final docs = m != null && m <= kUrgentDays;
     final parts = (_wear[_n(v['id'])]?.level ?? 0) == 2;
     return docs || parts;
   }
@@ -226,7 +227,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
   bool _isSoon(dynamic v) {
     if (_isOverdue(v)) return false;
     final m = _minDays(v);
-    final docs = m != null && m >= 0 && m <= kSoonDays;
+    final docs = m != null && m > kUrgentDays && m <= kSoonDays;
     final parts = (_wear[_n(v['id'])]?.level ?? 0) == 1;
     return docs || parts;
   }
@@ -315,7 +316,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       body: FutureBuilder<List<dynamic>>(
         future: _future,
         builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
+          if (snap.connectionState != ConnectionState.done && !snap.hasData) {
             return const Center(
                 child: CircularProgressIndicator(color: _P.accent));
           }
@@ -491,10 +492,29 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     final m = _minDays(v);
     final w = _wear[_n(v['id'])];
     final wl = w?.level ?? 0;
-    // требует внимания: горят документы или износ запчастей
+    final insD = daysOf(v['insurance_days']);
+    final inspD = daysOf(v['inspection_days']);
     final attention = (m != null && m <= kSoonDays) || wl > 0;
-    final ac = ((m != null && m <= kUrgentDays) || wl == 2) ? _P.red : _P.accent;
+    final urgent = (m != null && m <= kUrgentDays) || wl == 2;
+    final ac = urgent ? _P.red : _P.accent;
     final mark = attention ? ac : _P.green;
+    final statusWord = urgent ? 'КРИТИЧНО' : (attention ? 'СКОРО' : 'В НОРМЕ');
+    final color = '${v['color'] ?? ''}'.trim();
+    final hasWear = w != null && w.total > 0;
+
+    String docAlert(String name, String expired, int? d) {
+      if (d == null || d > kSoonDays) return '';
+      if (d < 0) return '$name $expired на ${-d} дн.';
+      if (d == 0) return '$name истекает сегодня';
+      return '$name: осталось $d дн.';
+    }
+
+    final alerts = <String>[
+      docAlert('Страховка', 'просрочена', insD),
+      docAlert('Техосмотр', 'просрочен', inspD),
+      if (w != null && w.red > 0) 'К замене узлов: ${w.red}',
+      if (w != null && w.yellow > 0) 'Скоро замена узлов: ${w.yellow}',
+    ].where((s) => s.isNotEmpty).toList();
 
     return Material(
       color: _P.card,
@@ -505,143 +525,273 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
       ),
       child: InkWell(
         onTap: () => _open(v),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-              child: Row(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // слева: статус, модель, цвет и номер; справа по центру: кольцо
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Container(
-                    width: 7,
-                    height: 7,
-                    decoration:
-                    BoxDecoration(color: mark, shape: BoxShape.circle),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(attention ? 'ТРЕБУЕТ ВНИМАНИЯ' : 'В НОРМЕ',
-                      style: TextStyle(
-                          fontSize: 11,
-                          letterSpacing: 1.1,
-                          fontWeight: FontWeight.w800,
-                          color: mark)),
-                ],
-              ),
-            ),
-            // «обложка» вместо фото
-            Container(
-              height: 132,
-              width: double.infinity,
-              margin: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFFFFF7E6), Color(0xFFFFE6B3)],
-                ),
-                border: Border.all(color: _P.accent.withOpacity(0.25)),
-              ),
-              child: Stack(
-                children: [
-                  Positioned(
-                    right: 8,
-                    top: 14,
-                    child: Icon(Icons.directions_car_filled_rounded,
-                        size: 100, color: _P.accent.withOpacity(0.18)),
-                  ),
-                  Positioned(
-                    right: 12,
-                    top: 12,
-                    child: PlateBadge('${v['plate']}', fs: 14),
-                  ),
-                  Positioned(
-                    left: 14,
-                    right: 14,
-                    bottom: 12,
-                    child: Text('${v['model']}',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 24,
-                            height: 1.1,
-                            fontWeight: FontWeight.w800,
-                            color: _P.text)),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            const Text('ПРОБЕГ НА ОДОМЕТРЕ',
+                            Container(
+                              width: 7,
+                              height: 7,
+                              decoration: BoxDecoration(
+                                  color: mark, shape: BoxShape.circle),
+                            ),
+                            const SizedBox(width: 7),
+                            Text(attention ? 'ТРЕБУЕТ ВНИМАНИЯ' : 'В НОРМЕ',
                                 style: TextStyle(
                                     fontSize: 10.5,
-                                    letterSpacing: 0.9,
+                                    letterSpacing: 1.0,
                                     fontWeight: FontWeight.w800,
-                                    color: _P.muted)),
-                            const SizedBox(height: 2),
+                                    color: mark)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text('${v['model']}',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 24,
+                                height: 1.1,
+                                fontWeight: FontWeight.w800,
+                                color: _P.text)),
+                        if (color.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(color,
+                              style: const TextStyle(
+                                  fontSize: 13, color: _P.muted)),
+                        ],
+                        const SizedBox(height: 16),
+                        PlateBadge('${v['plate']}', fs: 24),
+                      ],
+                    ),
+                  ),
+                  ...[
+                    const SizedBox(width: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: SizedBox(
+                        width: 76,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 64,
+                              height: 64,
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 64,
+                                    height: 64,
+                                    child: CircularProgressIndicator(
+                                      value: hasWear ? w.avg : 0.0,
+                                      strokeWidth: 6,
+                                      backgroundColor:
+                                      mark.withOpacity(0.16),
+                                      valueColor:
+                                      AlwaysStoppedAnimation(mark),
+                                    ),
+                                  ),
+                                  hasWear
+                                      ? Text('${(w.avg * 100).round()}%',
+                                      style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w800,
+                                          color: mark))
+                                      : Text('нет\nузлов',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                          fontSize: 10.5,
+                                          height: 1.2,
+                                          fontWeight: FontWeight.w700,
+                                          color: mark)),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 5),
                             FittedBox(
                               fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text('${fmtKm(v['mileage'])} км',
-                                  style: const TextStyle(
-                                      fontSize: 34,
-                                      height: 1.1,
+                              child: Text(statusWord,
+                                  maxLines: 1,
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      letterSpacing: 0.4,
                                       fontWeight: FontWeight.w800,
-                                      color: _P.text)),
+                                      color: mark)),
                             ),
-                            if (v['mileage_synced_at'] != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Text('Обновлено: ${_ago(v['mileage_synced_at'])}',
-                                    style: const TextStyle(
-                                        fontSize: 11.5, color: _P.muted)),
-                              ),
                           ],
                         ),
                       ),
+                    ),
+                  ],
+                ],
+              ),
+              // красная плашка с причиной
+              if (alerts.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(top: 14),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: ac.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: ac.withOpacity(0.35)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, color: ac, size: 20),
                       const SizedBox(width: 10),
-                      OutlinedButton.icon(
-                        onPressed: () => _updateMileage(v),
-                        icon: const Icon(Icons.sync_rounded, size: 17),
-                        label: const Text('ОБНОВИТЬ'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: _P.text,
-                          backgroundColor: _P.card2,
-                          side: const BorderSide(color: _P.line),
-                          textStyle: const TextStyle(
-                              fontSize: 12.5,
-                              letterSpacing: 0.4,
-                              fontWeight: FontWeight.w800),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
+                      Expanded(
+                        child: Text(alerts.join('\n'),
+                            style: TextStyle(
+                                fontSize: 12.5,
+                                height: 1.35,
+                                fontWeight: FontWeight.w700,
+                                color: ac)),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  _docBox(Icons.shield_outlined, 'Страховка',
-                      v['insurance_from'], v['insurance_to'],
-                      daysOf(v['insurance_days'])),
-                  _docBox(Icons.fact_check_outlined, 'Техосмотр',
-                      v['inspection_from'], v['inspection_to'],
-                      daysOf(v['inspection_days'])),
-                  if (w != null && w.total > 0) _wearBox(w),
-                ],
+                ),
+              const SizedBox(height: 14),
+              // пробег, страховка, техосмотр
+              // пробег, страховка, техосмотр: одна полоса с тонкими линиями
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: const BoxDecoration(
+                  border: Border.symmetric(
+                    horizontal: BorderSide(color: _P.line),
+                  ),
+                ),
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _miniStat(
+                        Icons.speed_rounded,
+                        'ПРОБЕГ',
+                        '${fmtKm(v['mileage'])} км',
+                        _P.text,
+                        v['mileage_synced_at'] != null
+                            ? _ago(v['mileage_synced_at'])
+                            : null,
+                      ),
+                      Container(
+                          width: 1,
+                          color: _P.line,
+                          margin: const EdgeInsets.symmetric(horizontal: 10)),
+                      _miniStat(
+                        Icons.shield_outlined,
+                        'СТРАХОВКА',
+                        _short(insD),
+                        _sc(insD),
+                        v['insurance_to'] == null
+                            ? 'нет данных'
+                            : 'до ${fmtDate(v['insurance_to'])}',
+                      ),
+                      Container(
+                          width: 1,
+                          color: _P.line,
+                          margin: const EdgeInsets.symmetric(horizontal: 10)),
+                      _miniStat(
+                        Icons.fact_check_outlined,
+                        'ТЕХОСМОТР',
+                        _short(inspD),
+                        _sc(inspD),
+                        v['inspection_to'] == null
+                            ? 'нет данных'
+                            : 'до ${fmtDate(v['inspection_to'])}',
+                      ),
+                    ],
+                  ),
+                ),
               ),
+              const SizedBox(height: 14),
+              // кнопки
+              // кнопка: на всю ширину (карточка целиком открывает машину)
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: FilledButton.icon(
+                  onPressed: () => _updateMileage(v),
+                  icon: const Icon(Icons.sync_rounded, size: 18),
+                  label: const Text('ОБНОВИТЬ ПРОБЕГ'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _P.accent,
+                    foregroundColor: _P.onAccent,
+                    textStyle: const TextStyle(
+                        fontSize: 12.5,
+                        letterSpacing: 0.4,
+                        fontWeight: FontWeight.w800),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Маленький блок: иконка + подпись, значение, мелкая строка под ним
+  Widget _miniStat(
+      IconData icon, String label, String value, Color c, String? sub) {
+    return Expanded(
+      child: Container(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 13, color: _P.muted),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(label,
+                        maxLines: 1,
+                        style: const TextStyle(
+                            fontSize: 9.5,
+                            letterSpacing: 0.5,
+                            fontWeight: FontWeight.w800,
+                            color: _P.muted)),
+                  ),
+                ),
+              ],
             ),
+            const SizedBox(height: 6),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(value,
+                  maxLines: 1,
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: c)),
+            ),
+            if (sub != null) ...[
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(sub,
+                    maxLines: 1,
+                    style: const TextStyle(fontSize: 10.5, color: _P.muted)),
+              ),
+            ],
           ],
         ),
       ),

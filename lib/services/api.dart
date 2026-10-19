@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart' show ValueNotifier, debugPrint;
+import 'dart:io' show SocketException;
 
 class ApiException implements Exception {
   final String message;
@@ -22,7 +23,7 @@ class Api {
   static String? name;
   static String? role;
   static void Function()? onUnauthorized; // вызывается при 401
-
+  static void Function()? onNetError; // вызывается при сетевой ошибке
   static String? _pushToken;
 
   static Future<void> registerPush(String t) async {
@@ -154,7 +155,19 @@ class Api {
     req.headers['Content-Type'] = 'application/json';
     if (token != null) req.headers['Authorization'] = 'Bearer $token';
     if (body != null) req.body = jsonEncode(body);
-    final r = await http.Response.fromStream(await req.send().timeout(_timeout));
+    final http.Response r;
+    try {
+      r = await http.Response.fromStream(await req.send().timeout(_timeout));
+    } on SocketException {
+      onNetError?.call();
+      rethrow;
+    } on TimeoutException {
+      onNetError?.call();
+      rethrow;
+    } on http.ClientException {
+      onNetError?.call();
+      rethrow;
+    }
     final data = _decode(r.body);
     if (r.statusCode == 401) {
       await logout();

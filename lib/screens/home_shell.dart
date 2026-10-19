@@ -8,7 +8,7 @@ import 'ui.dart';
 import 'dart:async';
 import '../services/api.dart';
 import '../services/push.dart';
-
+import '../services/net.dart';
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
   @override
@@ -30,6 +30,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         const Duration(minutes: 10), (_) => Api.autoSyncMileage());
     Api.checkVersion(); // один раз запомнить текущую версию
     Api.startEvents(); // дальше сервер сам сообщает об изменениях
+    Net.start(); // следим за связью
   }
 
   void _onPushTab() {
@@ -99,13 +100,30 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
 
   Widget _scaffold() {
     return Scaffold(
-      body: IndexedStack(
-        index: _i,
+      body: Column(
         children: [
-          _tab(0, const VehiclesScreen()),
-          _tab(1, const PartsScreen()),
-          _tab(2, const ServiceScreen()),
-          _tab(3, const ProfileScreen()),
+          const OfflineBanner(),
+          Expanded(
+            // пока плашка видна, она сама занимает место под статус-баром,
+            // поэтому у вкладок верхний отступ убираем (иначе будет двойной)
+            child: ValueListenableBuilder<bool>(
+              valueListenable: Net.online,
+              builder: (context, on, child) => MediaQuery.removePadding(
+                context: context,
+                removeTop: !on,
+                child: child!,
+              ),
+              child: IndexedStack(
+                index: _i,
+                children: [
+                  _tab(0, const VehiclesScreen()),
+                  _tab(1, const PartsScreen()),
+                  _tab(2, const ServiceScreen()),
+                  _tab(3, const ProfileScreen()),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
       bottomNavigationBar: _NavBar(
