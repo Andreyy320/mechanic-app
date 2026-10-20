@@ -15,7 +15,7 @@ class Push {
 
   static final _local = FlutterLocalNotificationsPlugin();
   static const _channel = AndroidNotificationChannel(
-    'main3',
+    'main4',
     'Уведомления',
     description: 'Сроки техосмотра и страховки, износ запчастей',
     importance: Importance.high,

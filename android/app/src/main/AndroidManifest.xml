@@ -38,7 +38,7 @@
             android:resource="@color/notification_color" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="main3" />
+            android:value="main4" />
 
         <!-- нужен, чтобы ota_update мог передать скачанный APK установщику -->
         <provider
