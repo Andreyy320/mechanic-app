@@ -142,23 +142,12 @@ class _ServiceScreenState extends State<ServiceScreen> {
         toolbarHeight: 68,
         titleSpacing: 16,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('ТЕХОСМОТР И СТРАХОВКА',
-                style: TextStyle(
-                    fontSize: 10.5,
-                    letterSpacing: 1.2,
-                    fontWeight: FontWeight.w800,
-                    color: _P.accent)),
-            Text('ТО и доки',
-                style: TextStyle(
-                    fontSize: 22,
-                    height: 1.1,
-                    fontWeight: FontWeight.w800,
-                    color: _P.text)),
-          ],
-        ),
+        title: const Text('Техосмотр и страховка',
+            style: TextStyle(
+                fontSize: 22,
+                height: 1.1,
+                fontWeight: FontWeight.w700,
+                color: _P.text)),
       ),
       body: _body(),
     );
@@ -388,11 +377,10 @@ class _ServiceScreenState extends State<ServiceScreen> {
                           fontWeight: FontWeight.w800,
                           color: c)),
                   const SizedBox(height: 3),
-                  Text(to == null ? 'ДОБАВИТЬ ›' : 'ПРОДЛИТЬ ›',
+                  Text(to == null ? 'Добавить ›' : 'Продлить ›',
                       style: const TextStyle(
-                          fontSize: 10.5,
-                          letterSpacing: 0.4,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
                           color: _P.accent)),
                 ],
               ),

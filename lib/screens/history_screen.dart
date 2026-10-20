@@ -551,11 +551,10 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
                             color: c)),
                     if (tappable) ...[
                       const SizedBox(height: 4),
-                      const Text('ИСТОРИЯ ›',
+                      const Text('История ›',
                           style: TextStyle(
                               fontSize: 10,
-                              letterSpacing: 0.4,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w700,
                               color: _P.accent)),
                     ],
                   ],

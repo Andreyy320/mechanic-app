@@ -276,23 +276,12 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   color: _P.accent, size: 22),
             ),
             const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('УЧЕТ АВТОПАРКА',
-                    style: TextStyle(
-                        fontSize: 10.5,
-                        letterSpacing: 1.2,
-                        fontWeight: FontWeight.w800,
-                        color: _P.accent)),
-                Text(Api.name ?? 'Машины',
-                    style: const TextStyle(
-                        fontSize: 22,
-                        height: 1.1,
-                        fontWeight: FontWeight.w800,
-                        color: _P.text)),
-              ],
-            ),
+            Text(Api.name ?? 'Машины',
+                style: const TextStyle(
+                    fontSize: 22,
+                    height: 1.1,
+                    fontWeight: FontWeight.w800,
+                    color: _P.text)),
           ],
         ),
         actions: [

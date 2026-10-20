@@ -227,23 +227,12 @@ class _PartsScreenState extends State<PartsScreen> {
         toolbarHeight: 68,
         titleSpacing: 16,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('РЕСУРС ЗАПЧАСТЕЙ',
-                style: TextStyle(
-                    fontSize: 10.5,
-                    letterSpacing: 1.2,
-                    fontWeight: FontWeight.w800,
-                    color: _P.accent)),
-            Text('Узлы',
-                style: TextStyle(
-                    fontSize: 22,
-                    height: 1.1,
-                    fontWeight: FontWeight.w800,
-                    color: _P.text)),
-          ],
-        ),
+        title: const Text('Ресурс запчастей',
+            style: TextStyle(
+                fontSize: 22,
+                height: 1.1,
+                fontWeight: FontWeight.w700,
+                color: _P.text)),
       ),
       body: _body(),
     );

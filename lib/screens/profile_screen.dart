@@ -71,23 +71,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         toolbarHeight: 68,
         titleSpacing: 16,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('АККАУНТ',
-                style: TextStyle(
-                    fontSize: 10.5,
-                    letterSpacing: 1.2,
-                    fontWeight: FontWeight.w800,
-                    color: _P.accent)),
-            Text('Профиль',
-                style: TextStyle(
-                    fontSize: 22,
-                    height: 1.1,
-                    fontWeight: FontWeight.w800,
-                    color: _P.text)),
-          ],
-        ),
+        title: const Text('Профиль',
+            style: TextStyle(
+                fontSize: 22,
+                height: 1.1,
+                fontWeight: FontWeight.w700,
+                color: _P.text)),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
@@ -248,11 +237,10 @@ class _LogoutSheet extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14)),
                       ),
-                      child: const Text('ОТМЕНА',
+                      child: const Text('Отмена',
                           style: TextStyle(
                               fontSize: 14,
-                              letterSpacing: 0.4,
-                              fontWeight: FontWeight.w800)),
+                              fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ),
@@ -268,11 +256,10 @@ class _LogoutSheet extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14)),
                       ),
-                      child: const Text('ВЫЙТИ',
+                      child: const Text('Выйти',
                           style: TextStyle(
                               fontSize: 14,
-                              letterSpacing: 0.4,
-                              fontWeight: FontWeight.w800)),
+                              fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ),
@@ -425,11 +412,10 @@ class _PasswordSheetState extends State<_PasswordSheet> {
                           height: 22,
                           child: CircularProgressIndicator(
                               strokeWidth: 2.5, color: Colors.white))
-                          : const Text('СОХРАНИТЬ',
+                          : const Text('Сохранить',
                           style: TextStyle(
                               fontSize: 14,
-                              letterSpacing: 0.4,
-                              fontWeight: FontWeight.w800)),
+                              fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ),

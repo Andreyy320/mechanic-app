@@ -111,17 +111,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 22),
                     const Text(
-                      'УЧЁТ АВТОПАРКА',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        letterSpacing: 1.2,
-                        fontWeight: FontWeight.w800,
-                        color: kPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
                       'Вход',
                       textAlign: TextAlign.center,
                       style: TextStyle(
@@ -206,11 +195,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         )
                             : const Text(
-                          'ВОЙТИ',
+                          'Войти',
                           style: TextStyle(
                             fontSize: 14,
-                            letterSpacing: 0.4,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
