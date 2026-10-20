@@ -42,26 +42,28 @@ int? _insDays(dynamic v) =>
     v['insurance_to'] == null ? null : daysOf(v['insurance_days']);
 int? _inspDays(dynamic v) =>
     v['inspection_to'] == null ? null : daysOf(v['inspection_days']);
+/// Есть ли у машины хотя бы один документ без данных
+bool _hasMissing(dynamic v) => _insDays(v) == null || _inspDays(v) == null;
 
-/// Сколько дней до ближайшего срока (нет данных — самое срочное)
-int _urgency(dynamic v) {
+/// Ближайший срок среди документов, у которых есть данные
+/// (просроченные — отрицательные, значит окажутся выше)
+int _nearest(dynamic v) {
   final a = _insDays(v), b = _inspDays(v);
-  final x = a ?? -1000000, y = b ?? -1000000;
-  return x < y ? x : y;
+  if (a == null) return b ?? 0;
+  if (b == null) return a;
+  return a < b ? a : b;
 }
 
-
-/// Срок второго (более далёкого) документа — для разбора ничьих
-int _second(dynamic v) {
-  final x = _insDays(v) ?? -1000000, y = _inspDays(v) ?? -1000000;
-  return x < y ? y : x;
-}
-
-/// Ближайший срок сверху; при равенстве — по второму документу, затем по номеру
+/// Сначала машины без данных, потом по ближайшему сроку
+/// (ТО или страховка — не важно), при равенстве — по второму сроку и номеру
 int _cmp(dynamic a, dynamic b) {
-  final c = _urgency(a).compareTo(_urgency(b));
+  final ma = _hasMissing(a), mb = _hasMissing(b);
+  if (ma != mb) return ma ? -1 : 1;
+  final c = _nearest(a).compareTo(_nearest(b));
   if (c != 0) return c;
-  final s = _second(a).compareTo(_second(b));
+  final sa = _insDays(a) ?? _inspDays(a) ?? 0;
+  final sb = _insDays(b) ?? _inspDays(b) ?? 0;
+  final s = sa.compareTo(sb);
   if (s != 0) return s;
   return '${a['plate']}'.compareTo('${b['plate']}');
 }
