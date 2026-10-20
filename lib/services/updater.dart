@@ -133,19 +133,18 @@ class _UpdateDialogState extends State<_UpdateDialog> {
             break;
           default:
             _busy = false;
-            _error = 'Не удалось скачать. Попробуйте ещё раз.';
+            _error = 'Ошибка: ${e.status.name} ${e.value ?? ''}';
         }
       });
-    }, onError: (_) {
+    }, onError: (err) {
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = 'Не удалось скачать. Попробуйте ещё раз.';
+          _error = 'Ошибка: $err';
         });
       }
     });
   }
-
   Widget _icon() {
     return SizedBox(
       width: 112,
