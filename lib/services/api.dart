@@ -42,16 +42,20 @@ class Api {
     role = await _storage.read(key: 'role');
   }
 
-  static Future<void> logout() async {
+  static Future<void> logout({bool notifyServer = true}) async {
     stopEvents();
     final pt = _pushToken;
     _pushToken = null;
-    if (pt != null && token != null) {
+    if (notifyServer && pt != null && token != null) {
       try {
         await _send('POST', '/notify/unregister', {'token': pt});
       } catch (_) {}
     }
     token = name = role = null;
+    _lastResult = null;
+    _lastSync = null;
+    _inflight = null;
+    _ver = null;
     await _storage.deleteAll();
   }
 
@@ -118,7 +122,7 @@ class Api {
         req.headers['Accept'] = 'text/event-stream';
         final resp = await client.send(req).timeout(_timeout);
         if (resp.statusCode == 401) {
-          await logout();
+          await logout(notifyServer: false);
           onUnauthorized?.call();
           break;
         }
@@ -129,6 +133,7 @@ class Api {
             .transform(utf8.decoder)
             .timeout(const Duration(seconds: 70))) {
           buf += chunk;
+          if (buf.length > 100000) buf = '';
           final parts = buf.split('\n\n');
           buf = parts.removeLast();
           for (final p in parts) {
@@ -170,8 +175,10 @@ class Api {
     }
     final data = _decode(r.body);
     if (r.statusCode == 401) {
-      await logout();
-      onUnauthorized?.call();
+      if (token != null) {
+        await logout(notifyServer: false);
+        onUnauthorized?.call();
+      }
       throw ApiException('Войдите заново', 401);
     }
     if (r.statusCode >= 400) {
@@ -192,9 +199,14 @@ class Api {
 
   static Future<dynamic> me() => _send('GET', '/me');
 
-  static Future<void> changePassword(String current, String password) =>
-      _send('POST', '/me/password', {'current': current, 'password': password});
-
+  static Future<void> changePassword(String current, String password) async {
+    final r = await _send('POST', '/me/password',
+        {'current': current, 'password': password, 'client': 'app'});
+    if (r is Map && r['token'] is String) {
+      token = r['token'];
+      await _storage.write(key: 'token', value: token);
+    }
+  }
   // ───────── машины ─────────
 
   /// Каждая машина: id, plate, model, color, mileage, description, owner_name,

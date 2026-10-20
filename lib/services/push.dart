@@ -43,7 +43,7 @@ class Push {
         if (first != null) _open(first);
       }
       _token = await m.getToken();
-      debugPrint('FCM token: $_token');
+      if (kDebugMode) debugPrint('FCM token: $_token');
       if (_token != null) await Api.registerPush(_token!);
     } catch (e) {
       debugPrint('Push init: $e');

@@ -317,6 +317,14 @@ class _PasswordSheetState extends State<_PasswordSheet> {
       setState(() => _error = 'Новые пароли не совпадают');
       return;
     }
+    if (_p1.text.length < 8) {
+      setState(() => _error = 'Пароль должен быть не короче 8 символов');
+      return;
+    }
+    if (_p1.text == _cur.text) {
+      setState(() => _error = 'Новый пароль совпадает со старым');
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
