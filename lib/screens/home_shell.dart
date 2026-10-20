@@ -136,7 +136,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
         onTap: _onTap,
         items: const [
           _NavItem(Icons.directions_car_outlined,
-              Icons.directions_car_rounded, 'Гараж'),
+              Icons.directions_car_rounded, 'Машины'),
           _NavItem(Icons.build_outlined, Icons.build_rounded, 'Узлы'),
           _NavItem(Icons.description_outlined, Icons.description_rounded,
               'ТО и доки'),
