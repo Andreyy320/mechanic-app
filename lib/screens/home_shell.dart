@@ -9,6 +9,9 @@ import 'dart:async';
 import '../services/api.dart';
 import '../services/push.dart';
 import '../services/net.dart';
+import '../services/updater.dart';
+
+
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
   @override
@@ -31,6 +34,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     Api.checkVersion(); // один раз запомнить текущую версию
     Api.startEvents(); // дальше сервер сам сообщает об изменениях
     Net.start(); // следим за связью
+    WidgetsBinding.instance.addPostFrameCallback((_) => Updater.check(context));
   }
 
   void _onPushTab() {
@@ -47,6 +51,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
       Push.resync(); // держим токен на сервере свежим
       Api.checkVersion();
       Api.startEvents();
+      Updater.check(context);
     }
   }
 
