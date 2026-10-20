@@ -120,6 +120,7 @@ class Api {
         final req = http.Request('GET', Uri.parse('$baseUrl/events'));
         req.headers['Authorization'] = 'Bearer $token';
         req.headers['Accept'] = 'text/event-stream';
+        req.headers['X-Client'] = 'app';
         final resp = await client.send(req).timeout(_timeout);
         if (resp.statusCode == 401) {
           await logout(notifyServer: false);
@@ -158,6 +159,7 @@ class Api {
       [Object? body]) async {
     final req = http.Request(method, Uri.parse('$baseUrl$path'));
     req.headers['Content-Type'] = 'application/json';
+    req.headers['X-Client'] = 'app';
     if (token != null) req.headers['Authorization'] = 'Bearer $token';
     if (body != null) req.body = jsonEncode(body);
     final http.Response r;
