@@ -111,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 22),
                     const Text(
-                      'ГАРАЖ МЕХАНИКА',
+                      'УЧЁТ АВТОПАРКА',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 10.5,
