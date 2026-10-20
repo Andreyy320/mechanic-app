@@ -33,7 +33,12 @@ class Updater {
         context: context,
         barrierDismissible: false,
         barrierColor: Colors.black.withOpacity(0.55),
-        builder: (_) => _UpdateDialog(url: url),
+        builder: (_) => _UpdateDialog(
+          url: url,
+          currentName: info.version,
+          current: current,
+          latest: latest,
+        ),
       );
       _showing = false;
     } catch (_) {
@@ -47,7 +52,13 @@ class Updater {
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black.withOpacity(0.55),
-      builder: (_) => const _UpdateDialog(url: '', simulate: true),
+      builder: (_) => const _UpdateDialog(
+        url: '',
+        simulate: true,
+        currentName: '1.0.0',
+        current: 1,
+        latest: 4,
+      ),
     );
   }
 }
@@ -55,7 +66,15 @@ class Updater {
 class _UpdateDialog extends StatefulWidget {
   final String url;
   final bool simulate;
-  const _UpdateDialog({required this.url, this.simulate = false});
+  final String currentName;
+  final int current, latest;
+  const _UpdateDialog({
+    required this.url,
+    required this.currentName,
+    required this.current,
+    required this.latest,
+    this.simulate = false,
+  });
   @override
   State<_UpdateDialog> createState() => _UpdateDialogState();
 }
@@ -279,6 +298,15 @@ class _UpdateDialogState extends State<_UpdateDialog> {
                 ],
                 const SizedBox(height: 24),
                 _bottom(),
+                const SizedBox(height: 16),
+                Text(
+                  'Сейчас: ${widget.currentName} (${widget.current})  →  новая сборка: ${widget.latest}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF9CA3AF)),
+                ),
               ],
             ),
           ),
