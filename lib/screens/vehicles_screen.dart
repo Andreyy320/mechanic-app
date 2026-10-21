@@ -487,10 +487,15 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     final urgent = (m != null && m <= kUrgentDays) || wl == 2;
     final ac = urgent ? _P.red : _P.accent;
     final mark = attention ? ac : _P.green;
-    final statusWord = urgent ? 'КРИТИЧНО' : (attention ? 'СКОРО' : 'В НОРМЕ');
     final color = '${v['color'] ?? ''}'.trim();
     final hasWear = w != null && w.total > 0;
-
+    // кольцо и подпись под ним — только по узлам (как в карточке машины)
+    final ringC = !hasWear
+        ? _P.muted
+        : (wl == 2 ? _P.red : (wl == 1 ? _P.accent : _P.green));
+    final ringWord = !hasWear
+        ? ''
+        : (wl == 2 ? 'ЗАМЕНА' : (wl == 1 ? 'СКОРО' : 'В НОРМЕ'));
     String docAlert(String name, String expired, int? d) {
       if (d == null || d > kSoonDays) return '';
       if (d < 0) return '$name $expired на ${-d} дн.';
@@ -564,65 +569,63 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                       ],
                     ),
                   ),
-                  ...[
-                    const SizedBox(width: 8),
-                    Padding(
-                      padding: const EdgeInsets.only(right: 10),
-                      child: SizedBox(
-                        width: 76,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 64,
-                              height: 64,
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  SizedBox(
-                                    width: 64,
-                                    height: 64,
-                                    child: CircularProgressIndicator(
-                                      value: hasWear ? w.avg : 0.0,
-                                      strokeWidth: 6,
-                                      backgroundColor:
-                                      mark.withOpacity(0.16),
-                                      valueColor:
-                                      AlwaysStoppedAnimation(mark),
-                                    ),
+                  const SizedBox(width: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: SizedBox(
+                      width: 76,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 64,
+                            height: 64,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 64,
+                                  height: 64,
+                                  child: CircularProgressIndicator(
+                                    value: hasWear ? w.avg : 0.0,
+                                    strokeWidth: 6,
+                                    backgroundColor: ringC.withOpacity(0.16),
+                                    valueColor: AlwaysStoppedAnimation(ringC),
                                   ),
-                                  hasWear
-                                      ? Text('${(w.avg * 100).round()}%',
-                                      style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w800,
-                                          color: mark))
-                                      : Text('нет\nузлов',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                          fontSize: 10.5,
-                                          height: 1.2,
-                                          fontWeight: FontWeight.w700,
-                                          color: mark)),
-                                ],
-                              ),
+                                ),
+                                hasWear
+                                    ? Text('${(w.avg * 100).round()}%',
+                                    style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w800,
+                                        color: ringC))
+                                    : Text('нет\nузлов',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                        fontSize: 10.5,
+                                        height: 1.2,
+                                        fontWeight: FontWeight.w700,
+                                        color: ringC)),
+                              ],
                             ),
+                          ),
+                          if (ringWord.isNotEmpty) ...[
                             const SizedBox(height: 5),
                             FittedBox(
                               fit: BoxFit.scaleDown,
-                              child: Text(statusWord,
+                              child: Text(ringWord,
                                   maxLines: 1,
                                   style: TextStyle(
                                       fontSize: 11,
                                       letterSpacing: 0.4,
                                       fontWeight: FontWeight.w800,
-                                      color: mark)),
+                                      color: ringC)),
                             ),
                           ],
-                        ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ],
               ),
               // красная плашка с причиной
