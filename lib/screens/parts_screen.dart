@@ -58,11 +58,13 @@ class _Item {
       this.warn2, this.lastKm, this.installedAt);
 
   int get mileage => _n(vehicle['mileage']);
+  bool get reset => mileage < lastKm; // пробег машины стал меньше, чем при установке
   int get left => norm - max(mileage - lastKm, 0);
-  double get value => (left / norm).clamp(0.0, 1.0).toDouble();
+  double get value => reset ? 0.0 : (left / norm).clamp(0.0, 1.0).toDouble();
 
   /// 0 — в норме, 1 — скоро замена, 2 — требует замены
   int get level {
+    if (reset) return 2;
     final l = left;
     final w1 = max(warn1, warn2);
     if (w1 == 0 && warn2 == 0) {
@@ -606,7 +608,9 @@ class _PartsScreenState extends State<PartsScreen> {
                           color: _P.text)),
                   const SizedBox(height: 2),
                   Text(
-                      left >= 0
+                      it.reset
+                          ? 'Пробег сбросился · введите установку заново'
+                          : left >= 0
                           ? 'Осталось ${fmtKm(left)} км · с ${fmtDate(it.installedAt)}'
                           : 'Перепробег ${fmtKm(-left)} км · с ${fmtDate(it.installedAt)}',
                       maxLines: 1,
@@ -629,13 +633,13 @@ class _PartsScreenState extends State<PartsScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('${(it.value * 100).round()}%',
+                Text(it.reset ? '—' : '${(it.value * 100).round()}%',
                     style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                         color: c)),
                 const SizedBox(height: 2),
-                Text(_tag(it.level),
+                Text(it.reset ? 'СБРОС ПРОБЕГА' : _tag(it.level),
                     style: TextStyle(
                         fontSize: 9.5,
                         letterSpacing: 0.6,

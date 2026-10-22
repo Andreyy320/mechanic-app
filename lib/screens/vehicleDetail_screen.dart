@@ -31,14 +31,17 @@ class _Node {
   _Node(this.typeId, this.title, this.icon, this.normKm, this.warn1,
       this.warn2, this.lastKm, this.installedAt);
 
+  bool reset(int mileage) => mileage < lastKm; // пробег сбросился
+
   int left(int mileage) => normKm - max(mileage - lastKm, 0);
 
-  double value(int mileage) =>
-      (left(mileage) / normKm).clamp(0.0, 1.0).toDouble();
-
+  double value(int mileage) => reset(mileage)
+      ? 0.0
+      : (left(mileage) / normKm).clamp(0.0, 1.0).toDouble();
   /// 0 — в норме, 1 — скоро замена, 2 — требует замены.
   /// Пороги те же, что на сайте и в «Требует внимания».
   int level(int mileage) {
+    if (reset(mileage)) return 2;
     final l = left(mileage);
     final w1 = max(warn1, warn2);
     if (w1 == 0 && warn2 == 0) {
@@ -791,7 +794,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text('${(value * 100).round()}%',
+                  Text(n.reset(m) ? '—' : '${(value * 100).round()}%',
                       style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
@@ -810,7 +813,9 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                left >= 0
+                n.reset(m)
+                    ? 'Пробег сбросился: введите установку заново'
+                    : left >= 0
                     ? 'Осталось ${fmtKm(left)} км из ${fmtKm(n.normKm)}'
                     : 'Перепробег ${fmtKm(-left)} км · интервал ${fmtKm(n.normKm)}',
                 style: const TextStyle(fontSize: 12, color: _P.muted),
@@ -825,7 +830,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                       color: c.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(_status(level),
+                    child: Text(n.reset(m) ? 'ПРОБЕГ СБРОСИЛСЯ' : _status(level),
                         style: TextStyle(
                             fontSize: 10,
                             letterSpacing: 0.7,

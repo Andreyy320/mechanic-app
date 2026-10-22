@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api.dart';
+import 'ui.dart' show fmtKm;
 
 class _P {
   static const card = Color(0xFFFFFFFF);
@@ -111,28 +112,120 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
   }
 
   Future<bool> _confirmLower(int now, int cur) async {
-    final yes = await showDialog<bool>(
+    final yes = await showModalBottomSheet<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: _P.card,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Пробег уменьшится'),
-        content: Text(
-            'Новый пробег $now км меньше текущего $cur км. Это нормально только при исправлении ошибки. Сохранить?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Отмена')),
-          TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Сохранить')),
-        ],
+      backgroundColor: _P.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: _P.accent.withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.trending_down_rounded,
+                      color: _P.accent, size: 28),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('Пробег уменьшится',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: _P.text)),
+              const SizedBox(height: 10),
+              Container(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: _P.card2,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('${fmtKm(cur)} км',
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: _P.muted)),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: Icon(Icons.arrow_forward_rounded,
+                          size: 18, color: _P.muted),
+                    ),
+                    Text('${fmtKm(now)} км',
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: _P.text)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                      'Запчасти, установленные при большем пробеге, станут красными: '
+                      'их нужно будет ввести заново.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13.5, height: 1.35, color: _P.muted)),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 52,
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        style: TextButton.styleFrom(
+                          foregroundColor: _P.muted,
+                          backgroundColor: _P.card2,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: const Text('Отмена',
+                            style: TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: SizedBox(
+                      height: 52,
+                      child: FilledButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _P.accent,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: const Text('Сохранить',
+                            style: TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
     return yes == true;
   }
-
   Future<void> _save() async {
     final plate = _plate.text.trim();
     final model = _model.text.trim();

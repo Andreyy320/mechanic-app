@@ -25,10 +25,9 @@ enum _Filter { all, overdue, soon }
 // ───────── износ запчастей по машине ─────────
 
 class _Wear {
-  final int total, red, yellow;
+  final int total, red, yellow, reset; // reset: узлы со сброшенным пробегом (они входят и в red)
   final double avg; // средний остаток ресурса узлов, 0..1
-  const _Wear(this.total, this.red, this.yellow, this.avg);
-
+  const _Wear(this.total, this.red, this.yellow, this.reset, this.avg);
   /// 0 — в норме, 1 — скоро замена, 2 — пора менять
   int get level => red > 0 ? 2 : (yellow > 0 ? 1 : 0);
 }
@@ -49,7 +48,7 @@ Map<int, _Wear> _calcWear(List<dynamic> parts, List<dynamic> cars) {
     final cmp = '${p['installed_at']}'.compareTo('${c['installed_at']}');
     if (cmp > 0 || (cmp == 0 && _n(p['id']) > _n(c['id']))) latest[k] = p;
   }
-  final total = <int, int>{}, red = <int, int>{}, yellow = <int, int>{};
+  final total = <int, int>{}, red = <int, int>{}, yellow = <int, int>{}, resetN = <int, int>{};
   final sum = <int, double>{};
   for (final p in latest.values) {
     final t = p['track'];
@@ -62,9 +61,12 @@ Map<int, _Wear> _calcWear(List<dynamic> parts, List<dynamic> cars) {
     final w1 = max(_n(p['warn1_km']), w2);
     final used = max((mileage[vid] ?? 0) - _n(p['mileage_at']), 0);
     final left = norm - used;
+    final reset = (mileage[vid] ?? 0) < _n(p['mileage_at']);
 
     int lvl;
-    if (w1 == 0 && w2 == 0) {
+    if (reset) {
+      lvl = 2;
+    } else if (w1 == 0 && w2 == 0) {
       final v = left / norm;
       lvl = v <= 0.2 ? 2 : (v <= 0.5 ? 1 : 0);
     } else {
@@ -72,16 +74,17 @@ Map<int, _Wear> _calcWear(List<dynamic> parts, List<dynamic> cars) {
     }
 
     total[vid] = (total[vid] ?? 0) + 1;
-    sum[vid] = (sum[vid] ?? 0) + (left / norm).clamp(0.0, 1.0).toDouble();
+    sum[vid] = (sum[vid] ?? 0) + (reset ? 0.0 : (left / norm).clamp(0.0, 1.0).toDouble());
     if (lvl == 2) {
       red[vid] = (red[vid] ?? 0) + 1;
+      if (reset) resetN[vid] = (resetN[vid] ?? 0) + 1;
     } else if (lvl == 1) {
       yellow[vid] = (yellow[vid] ?? 0) + 1;
     }
   }
   return {
     for (final id in total.keys)
-      id: _Wear(total[id]!, red[id] ?? 0, yellow[id] ?? 0,
+      id: _Wear(total[id]!, red[id] ?? 0, yellow[id] ?? 0, resetN[id] ?? 0,
           sum[id]! / total[id]!)
   };
 }
@@ -506,7 +509,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     final alerts = <String>[
       docAlert('Страховка', 'просрочена', insD),
       docAlert('Техосмотр', 'просрочен', inspD),
-      if (w != null && w.red > 0) 'К замене узлов: ${w.red}',
+      if (w != null && w.reset > 0) 'Пробег сбросился, введите установки: ${w.reset}',
+      if (w != null && w.red - w.reset > 0) 'К замене узлов: ${w.red - w.reset}',
       if (w != null && w.yellow > 0) 'Скоро замена узлов: ${w.yellow}',
     ].where((s) => s.isNotEmpty).toList();
 
