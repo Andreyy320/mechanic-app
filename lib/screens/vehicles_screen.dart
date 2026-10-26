@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:mechanic_app/screens/vehicleDetail_screen.dart';
 import '../services/api.dart';
 import 'vehicle_form_sheet.dart';
-import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays, PlateBadge;
+import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays, PlateBadge,unitOf;
 /// ───── Палитра экрана (светлая тема, меняйте цвета здесь) ─────
 class _P {
   static const bg = Color(0xFFF6F7FA);
@@ -675,7 +675,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                       _miniStat(
                         Icons.speed_rounded,
                         'ПРОБЕГ',
-                        '${fmtKm(v['mileage'])} км',
+                        '${fmtKm(v['mileage'])} ${unitOf(v)}',
                         _P.text,
                         v['mileage_synced_at'] != null
                             ? _ago(v['mileage_synced_at'])

@@ -16,6 +16,18 @@ ThemeData buildTheme() => ThemeData(
   useMaterial3: true,
   scaffoldBackgroundColor: kBg,
   colorScheme: ColorScheme.fromSeed(seedColor: kPrimary, surface: Colors.white),
+  filledButtonTheme: FilledButtonThemeData(
+    style: FilledButton.styleFrom(
+      backgroundColor: kPrimary,
+      foregroundColor: Colors.white,
+    ),
+  ),
+  elevatedButtonTheme: ElevatedButtonThemeData(
+    style: ElevatedButton.styleFrom(
+      backgroundColor: kPrimary,
+      foregroundColor: Colors.white,
+    ),
+  ),
   snackBarTheme: SnackBarThemeData(
     behavior: SnackBarBehavior.floating,
     backgroundColor: kText,
@@ -59,6 +71,9 @@ String fmtKm(dynamic m) {
         (_) => ' ',
   );
 }
+/// Единица пробега машины или записи: 'миль' или 'км'
+String unitOf(dynamic v) =>
+    (v is Map && v['mileage_unit'] == 'mi') ? 'миль' : 'км';
 
 /// "2027-03-12" -> "12.03.2027"
 String fmtDate(dynamic s) {

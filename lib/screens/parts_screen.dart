@@ -2,7 +2,7 @@ import 'dart:math' show max, min;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api.dart';
-import 'ui.dart' show fmtKm, fmtDate, PlateBadge;
+import 'ui.dart' show fmtKm, fmtDate, PlateBadge,unitOf;
 import 'vehicleDetail_screen.dart' show InstallSheet;
 
 /// Вкладка «Узлы» — рабочий список «что менять».
@@ -575,7 +575,7 @@ class _PartsScreenState extends State<PartsScreen> {
   Widget _row(_Item it) {
     final c = _lc(it.level);
     final left = it.left;
-
+    final u = unitOf(it.vehicle);
     return InkWell(
       onTap: () => _replace(it),
       child: Padding(
@@ -611,8 +611,8 @@ class _PartsScreenState extends State<PartsScreen> {
                       it.reset
                           ? 'Пробег сбросился · введите установку заново'
                           : left >= 0
-                          ? 'Осталось ${fmtKm(left)} км · с ${fmtDate(it.installedAt)}'
-                          : 'Перепробег ${fmtKm(-left)} км · с ${fmtDate(it.installedAt)}',
+                          ? 'Осталось ${fmtKm(left)} $u · с ${fmtDate(it.installedAt)}'
+                          : 'Перепробег ${fmtKm(-left)} $u · с ${fmtDate(it.installedAt)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 11.5, color: _P.muted)),

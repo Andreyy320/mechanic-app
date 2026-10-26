@@ -22,6 +22,23 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+
+  Future<void> _changeLogin() async {
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: _P.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => const _LoginChangeSheet(),
+    );
+    if (ok == true && mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Логин изменён')));
+    }
+  }
+
   Future<void> _changePassword() async {
     final ok = await showModalBottomSheet<bool>(
       context: context,
@@ -141,6 +158,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     MaterialPageRoute(builder: (_) => const HistoryScreen()),
                   );
                 }),
+                const Divider(height: 1, thickness: 1, color: _P.line),
+                _tile(Icons.person_outline_rounded, 'Сменить логин', _changeLogin),
                 const Divider(height: 1, thickness: 1, color: _P.line),
                 _tile(Icons.lock_outline_rounded, 'Сменить пароль',
                     _changePassword),
@@ -304,8 +323,8 @@ class _PasswordSheetState extends State<_PasswordSheet> {
       setState(() => _error = 'Новые пароли не совпадают');
       return;
     }
-    if (_p1.text.length < 8) {
-      setState(() => _error = 'Пароль должен быть не короче 8 символов');
+    if (_p1.text.length < 4) {
+      setState(() => _error = 'Пароль должен быть не короче 4 символов');
       return;
     }
     if (_p1.text == _cur.text) {
@@ -416,6 +435,177 @@ class _PasswordSheetState extends State<_PasswordSheet> {
                           style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                SizedBox(
+                  height: 52,
+                  child: TextButton(
+                    onPressed: _busy ? null : () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      foregroundColor: _P.muted,
+                      backgroundColor: _P.card2,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: const Text('Отмена',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+/// Форма «Сменить логин»: новый логин + текущий пароль для подтверждения.
+class _LoginChangeSheet extends StatefulWidget {
+  const _LoginChangeSheet();
+  @override
+  State<_LoginChangeSheet> createState() => _LoginChangeSheetState();
+}
+
+class _LoginChangeSheetState extends State<_LoginChangeSheet> {
+  final _login = TextEditingController();
+  final _pass = TextEditingController();
+  bool _show = false;
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _login.dispose();
+    _pass.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final l = _login.text.trim();
+    if (l.isEmpty || _pass.text.isEmpty) {
+      setState(() => _error = 'Заполните все поля');
+      return;
+    }
+    if (l.length < 4) {
+      setState(() => _error = 'Логин должен быть не короче 4 символов');
+      return;
+    }
+    if (l.contains(RegExp(r'\s'))) {
+      setState(() => _error = 'В логине не должно быть пробелов');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await Api.changeLogin(_pass.text, l);
+      if (mounted) Navigator.of(context).pop(true);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Нет связи с сервером');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Widget _label(String t) => Padding(
+    padding: const EdgeInsets.only(bottom: 6, top: 14),
+    child: Text(t,
+        style: const TextStyle(
+            fontSize: 13, fontWeight: FontWeight.w700, color: _P.muted)),
+  );
+
+  InputDecoration _dec({Widget? suffix}) => InputDecoration(
+    filled: true,
+    fillColor: _P.card2,
+    suffixIcon: suffix,
+    contentPadding:
+    const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide.none,
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Сменить логин',
+                style: TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.w800, color: _P.text)),
+            _label('Новый логин'),
+            TextField(
+              controller: _login,
+              autocorrect: false,
+              enableSuggestions: false,
+              style: const TextStyle(
+                  fontSize: 15, fontWeight: FontWeight.w600, color: _P.text),
+              cursorColor: _P.accent,
+              decoration: _dec(),
+            ),
+            _label('Текущий пароль (для подтверждения)'),
+            TextField(
+              controller: _pass,
+              obscureText: !_show,
+              autocorrect: false,
+              enableSuggestions: false,
+              onSubmitted: (_) => _save(),
+              style: const TextStyle(
+                  fontSize: 15, fontWeight: FontWeight.w600, color: _P.text),
+              cursorColor: _P.accent,
+              decoration: _dec(
+                suffix: IconButton(
+                  icon: Icon(
+                      _show
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: _P.muted),
+                  onPressed: () => setState(() => _show = !_show),
+                ),
+              ),
+            ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(_error!,
+                    style: const TextStyle(
+                        color: _P.red, fontWeight: FontWeight.w500)),
+              ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 52,
+                    child: FilledButton(
+                      onPressed: _busy ? null : _save,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _P.accent,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: _busy
+                          ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2.5, color: Colors.white))
+                          : const Text('Сохранить',
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ),

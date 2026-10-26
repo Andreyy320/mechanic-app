@@ -201,6 +201,20 @@ class Api {
 
   static Future<dynamic> me() => _send('GET', '/me');
 
+  static Future<void> changeLogin(String currentPassword, String newLogin) async {
+    final r = await _send('POST', '/me/login', {
+      'current': currentPassword,
+      'login': newLogin,
+      'client': 'app',
+    });
+    // Если ваш бэкенд при смене логина возвращает новый токен (как при смене пароля)
+    if (r is Map && r['token'] is String) {
+      token = r['token'];
+      await _storage.write(key: 'token', value: token);
+    }
+  }
+
+
   static Future<void> changePassword(String current, String password) async {
     final r = await _send('POST', '/me/password',
         {'current': current, 'password': password, 'client': 'app'});

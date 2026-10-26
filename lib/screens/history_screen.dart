@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api.dart';
-import 'ui.dart' show fmtKm, fmtDate, PlateBadge;
+import 'ui.dart' show fmtKm, fmtDate, PlateBadge,unitOf;
 
 class _P {
   static const bg = Color(0xFFF6F7FA);
@@ -182,7 +182,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             fontWeight: FontWeight.w800,
                             color: _P.text)),
                     const SizedBox(height: 2),
-                    Text('${fmtKm(v['mileage'])} км',
+                    Text('${fmtKm(v['mileage'])} ${unitOf(v)}',
                         style:
                         const TextStyle(fontSize: 12.5, color: _P.muted)),
                   ],
@@ -301,7 +301,7 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
           _Kind.part,
           '${p['installed_at']}',
           '${p['part_name']}',
-          'Пробег при установке: ${fmtKm(p['mileage_at'])} км'
+          'Пробег при установке: ${fmtKm(p['mileage_at'])} ${unitOf(p)}'
               '${n > 1 ? ' · замен: $n' : ''}',
           typeId: tid,
         ));
@@ -578,7 +578,7 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
     if (list.isEmpty) return;
     final cur = _n(widget.vehicle['mileage']);
     final norm = _n(list.first['norm_km']);
-
+    final u = unitOf(widget.vehicle);
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -604,7 +604,7 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
                 const SizedBox(height: 4),
                 Text(
                     'Замен: ${list.length}'
-                        '${norm > 0 ? ' · норматив ${fmtKm(norm)} км' : ''}',
+                        '${norm > 0 ? ' · норматив ${fmtKm(norm)} $u' : ''}',
                     style: const TextStyle(fontSize: 13, color: _P.muted)),
                 const SizedBox(height: 14),
                 Flexible(
@@ -645,7 +645,7 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
                                             fontWeight: FontWeight.w800,
                                             color: _P.text)),
                                     const SizedBox(height: 2),
-                                    Text('на ${fmtKm(at)} км',
+                                    Text('на ${fmtKm(at)} $u',
                                         style: const TextStyle(
                                             fontSize: 12.5, color: _P.muted)),
                                   ],
@@ -655,7 +655,7 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  Text(ok ? '${fmtKm(used)} км' : '—',
+                                  Text(ok ? '${fmtKm(used)} $u' : '—',
                                       style: TextStyle(
                                           fontSize: 15,
                                           fontWeight: FontWeight.w800,

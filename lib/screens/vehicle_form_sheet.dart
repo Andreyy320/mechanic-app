@@ -20,6 +20,7 @@ Future<bool?> showVehicleForm(BuildContext context, {dynamic vehicle}) {
     context: context,
     isScrollControlled: true,
     backgroundColor: _P.card,
+
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
@@ -29,6 +30,7 @@ Future<bool?> showVehicleForm(BuildContext context, {dynamic vehicle}) {
 
 final _letter = RegExp(r'\p{L}', unicode: true);
 final _digit = RegExp(r'\d');
+
 
 /// Номер вводится «как есть», формат определяется сам:
 ///   вторая цифра  → «Т 774 МЕ»  (буква, 3 цифры, 2 буквы)
@@ -111,6 +113,11 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
     });
   }
 
+
+  late String _unit = _s('mileage_unit') == 'mi' ? 'mi' : 'km';
+  String get _u => _unit == 'mi' ? 'миль' : 'км';
+
+
   Future<bool> _confirmLower(int now, int cur) async {
     final yes = await showModalBottomSheet<bool>(
       context: context,
@@ -155,7 +162,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('${fmtKm(cur)} км',
+                    Text('${fmtKm(cur)} $_u',
                         style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
@@ -165,7 +172,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
                       child: Icon(Icons.arrow_forward_rounded,
                           size: 18, color: _P.muted),
                     ),
-                    Text('${fmtKm(now)} км',
+                    Text('${fmtKm(now)} $_u',
                         style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
@@ -251,7 +258,9 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
 
     // как на сайте: пробег меньше текущего — только после подтверждения
     var force = false;
-    if (_editing && km != null) {
+    final unitChanged =
+        _editing && _unit != (_s('mileage_unit') == 'mi' ? 'mi' : 'km');
+    if (_editing && km != null && !unitChanged) {
       final cur = ((widget.vehicle['mileage'] as num?) ?? 0).round();
       if (km < cur) {
         if (!await _confirmLower(km, cur)) return;
@@ -268,6 +277,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
       'model': model,
       'color': _color.text.trim(),
       'description': _desc.text.trim(),
+      'mileage_unit': _unit,
       if (km != null) 'mileage': km,
       if (force) 'force': true,
     };
@@ -407,11 +417,35 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
             _input(_model, cap: TextCapitalization.words),
             _label('Цвет'),
             _input(_color, cap: TextCapitalization.sentences),
-            _label('Пробег, км'),
-            _input(_km,
-                type: TextInputType.number,
-                suffix: 'км',
-                formatters: [FilteringTextInputFormatter.digitsOnly]),
+          _label('Единица пробега'),
+            SegmentedButton<String>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: 'km', label: Text('Километры')),
+                ButtonSegment(value: 'mi', label: Text('Мили')),
+              ],
+              selected: {_unit},
+              onSelectionChanged: (s) => setState(() => _unit = s.first),
+              style: ButtonStyle(
+                backgroundColor: MaterialStateProperty.resolveWith((states) =>
+                states.contains(MaterialState.selected)
+                    ? _P.accent
+                    : Colors.white),
+                foregroundColor: MaterialStateProperty.resolveWith((states) =>
+                states.contains(MaterialState.selected)
+                    ? Colors.white
+                    : _P.text),
+                side: const MaterialStatePropertyAll(
+                    BorderSide(color: Color(0xFFE5E7EB))),
+                overlayColor: const MaterialStatePropertyAll(Color(0x11000000)),
+                textStyle: const MaterialStatePropertyAll(
+                    TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                shape: MaterialStatePropertyAll(RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14))),
+              ),
+            ),
+          _label('Пробег, $_u'),
+          _input(_km, type: TextInputType.number, suffix: _u, formatters: [FilteringTextInputFormatter.digitsOnly]),
             _label('Описание'),
             _input(_desc, lines: 3, cap: TextCapitalization.sentences),
             if (_error != null)

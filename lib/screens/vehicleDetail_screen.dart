@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mechanic_app/screens/vehicle_form_sheet.dart';
 import 'doc_renew_sheet.dart';
-import '../services/api.dart';import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays, PlateBadge;
+import '../services/api.dart';import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays, PlateBadge,unitOf;
 
 class _P {
   static const bg = Color(0xFFF6F7FA);
@@ -16,6 +16,7 @@ class _P {
   static const onAccent = Color(0xFFFFFFFF);
   static const green = Color(0xFF16A34A);
   static const red = Color(0xFFDC2626);
+  static const ink = Color(0xFF111827); // чёрный для формы установки
 }
 
 /// Узел, который реально установлен на машине (по записям из /parts).
@@ -209,11 +210,16 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
       }
 
       if (mounted) {
+        final normKey = _v['mileage_unit'] == 'mi' ? 'norm_mi' : 'norm_km';
+
         setState(() {
           _nodes = nodes;
-          _types = types
-              .where((t) => _truthy(t['track']) && _int(t['norm_km']) > 0)
-              .toList();
+
+          final mi = _v['mileage_unit'] == 'mi';
+          _types = types.where((t) {
+            final norm = _int(mi ? t['norm_mi'] : t['norm_km']);
+            return _truthy(t['track']) && norm > 0;
+          }).toList();
         });
       }
     } on ApiException catch (e) {
@@ -252,6 +258,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
   Future<void> _showActions() async {
     final act = await showModalBottomSheet<String>(
       context: context,
+
       backgroundColor: _P.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -367,8 +374,9 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
   Future<void> _install({_Node? node}) async {
     final ok = await showModalBottomSheet<bool>(
       context: context,
+
       isScrollControlled: true,
-      backgroundColor: _P.card,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -629,7 +637,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                               letterSpacing: 0.9,
                               fontWeight: FontWeight.w800,
                               color: _P.muted)),
-                      Text('${fmtKm(m)} км',
+                      Text('${fmtKm(m)} ${unitOf(_v)}',
                           style: const TextStyle(
                               fontSize: 19,
                               fontWeight: FontWeight.w800,
@@ -747,7 +755,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
     final value = n.value(m);
     final level = n.level(m);
     final c = _lc(level);
-
+    final u = unitOf(_v);
     return Material(
       color: _P.card,
       clipBehavior: Clip.antiAlias,
@@ -787,7 +795,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                                 color: _P.text)),
                         const SizedBox(height: 2),
                         Text(
-                            'Установлено ${fmtDate(n.installedAt)} · ${fmtKm(n.lastKm)} км',
+                            'Установлено ${fmtDate(n.installedAt)} · ${fmtKm(n.lastKm)} $u',
                             style: const TextStyle(
                                 fontSize: 11.5, color: _P.muted)),
                       ],
@@ -816,8 +824,8 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                 n.reset(m)
                     ? 'Пробег сбросился: введите установку заново'
                     : left >= 0
-                    ? 'Осталось ${fmtKm(left)} км из ${fmtKm(n.normKm)}'
-                    : 'Перепробег ${fmtKm(-left)} км · интервал ${fmtKm(n.normKm)}',
+                    ? 'Осталось ${fmtKm(left)} $u из ${fmtKm(n.normKm)}'
+                    : 'Перепробег ${fmtKm(-left)} $u · интервал ${fmtKm(n.normKm)}',
                 style: const TextStyle(fontSize: 12, color: _P.muted),
               ),
               const SizedBox(height: 10),
@@ -854,6 +862,8 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
   }
 }
 
+/// Форма «Добавить: Установка» (как на сайте):
+/// машина, запчасть, дата установки, пробег машины при установке.
 /// Форма «Добавить: Установка» (как на сайте):
 /// машина, запчасть, дата установки, пробег машины при установке.
 class InstallSheet extends StatefulWidget {
@@ -914,7 +924,7 @@ class InstallSheetState extends State<InstallSheet> {
             headerForegroundColor: _P.text,
           ),
           textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(foregroundColor: _P.accent),
+            style: TextButton.styleFrom(foregroundColor: _P.ink),
           ),
         ),
         child: child!,
@@ -926,6 +936,13 @@ class InstallSheetState extends State<InstallSheet> {
       _dateC.text = _ru(d);
     });
   }
+
+  OutlineInputBorder _border([Color? c]) => OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: c == null
+        ? BorderSide.none
+        : BorderSide(color: c, width: 1.5),
+  );
 
   /// Поле даты: можно вписать цифрами (точки сами) или нажать на календарь
   Widget _dateField() {
@@ -941,7 +958,7 @@ class InstallSheetState extends State<InstallSheet> {
           letterSpacing: 0.5,
           fontWeight: FontWeight.w700,
           color: _P.text),
-      cursorColor: _P.accent,
+      cursorColor: _P.ink,
       decoration: InputDecoration(
         hintText: 'ДД.ММ.ГГГГ',
         hintStyle: const TextStyle(
@@ -949,17 +966,12 @@ class InstallSheetState extends State<InstallSheet> {
         filled: true,
         fillColor: _P.card2,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _P.accent, width: 1.5),
-        ),
+        border: _border(),
+        enabledBorder: _border(),
+        focusedBorder: _border(_P.ink),
         suffixIcon: IconButton(
           tooltip: 'Выбрать в календаре',
-          icon: const Icon(Icons.calendar_month_rounded, color: _P.accent),
+          icon: const Icon(Icons.calendar_month_rounded, color: _P.ink),
           onPressed: _pickDate,
         ),
       ),
@@ -1033,6 +1045,77 @@ class InstallSheetState extends State<InstallSheet> {
     ),
   );
 
+  /// Поиск запчасти: белое меню, чёрный текст, серая подсветка (без оранжевого)
+  Widget _partPicker() {
+    final base = Theme.of(context);
+    return Theme(
+      data: base.copyWith(
+        colorScheme: base.colorScheme.copyWith(
+          primary: _P.ink,
+          surface: Colors.white,
+          surfaceTint: Colors.transparent,
+          surfaceContainer: Colors.white,
+          surfaceContainerHigh: Colors.white,
+          primaryContainer: _P.card2,
+        ),
+        textSelectionTheme: TextSelectionThemeData(
+          cursorColor: _P.ink,
+          selectionHandleColor: _P.ink,
+          selectionColor: _P.ink.withOpacity(0.15),
+        ),
+        hoverColor: _P.card2,
+        highlightColor: _P.card2,
+        splashColor: _P.card2,
+      ),
+      child: LayoutBuilder(
+        builder: (_, c) => DropdownMenu<int>(
+          width: c.maxWidth,
+          hintText: 'Начните ввод для поиска...',
+          enableFilter: true,
+          requestFocusOnTap: true,
+          menuHeight: 260,
+          textStyle: const TextStyle(
+              fontSize: 15, fontWeight: FontWeight.w600, color: _P.text),
+          inputDecorationTheme: InputDecorationTheme(
+            filled: true,
+            fillColor: _P.card2,
+            contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+            border: _border(),
+            enabledBorder: _border(),
+            focusedBorder: _border(_P.ink),
+          ),
+          menuStyle: MenuStyle(
+            backgroundColor: const MaterialStatePropertyAll(Colors.white),
+            surfaceTintColor:
+            const MaterialStatePropertyAll(Colors.transparent),
+            elevation: const MaterialStatePropertyAll(4),
+            shape: MaterialStatePropertyAll(RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: const BorderSide(color: _P.line),
+            )),
+          ),
+          dropdownMenuEntries: [
+            for (final t in widget.types)
+              DropdownMenuEntry<int>(
+                value: _int(t['id']),
+                label: '${t['name']}',
+                style: ButtonStyle(
+                  backgroundColor:
+                  const MaterialStatePropertyAll(Colors.white),
+                  foregroundColor: const MaterialStatePropertyAll(_P.text),
+                  textStyle: const MaterialStatePropertyAll(TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w600)),
+                  overlayColor: MaterialStatePropertyAll(_P.card2),
+                ),
+              ),
+          ],
+          onSelected: (id) => setState(() => _typeId = id),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final v = widget.vehicle;
@@ -1053,38 +1136,10 @@ class InstallSheetState extends State<InstallSheet> {
             if (widget.fixedTypeId != null)
               _readOnly(widget.fixedName ?? '')
             else
-              LayoutBuilder(
-                builder: (_, c) => DropdownMenu<int>(
-                  width: c.maxWidth,
-                  hintText: 'Начните ввод для поиска...',
-                  enableFilter: true,
-                  requestFocusOnTap: true,
-                  menuHeight: 260,
-                  textStyle: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: _P.text),
-                  inputDecorationTheme: InputDecorationTheme(
-                    filled: true,
-                    fillColor: _P.card2,
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 15),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                  dropdownMenuEntries: [
-                    for (final t in widget.types)
-                      DropdownMenuEntry<int>(
-                          value: _int(t['id']), label: '${t['name']}'),
-                  ],
-                  onSelected: (id) => setState(() => _typeId = id),
-                ),
-              ),
+              _partPicker(),
             _label('Дата установки'),
             _dateField(),
-            _label('Пробег машины при установке, км'),
+            _label('Пробег машины при установке, ${unitOf(widget.vehicle)}'),
             TextField(
               controller: _km,
               keyboardType: TextInputType.number,
@@ -1092,17 +1147,16 @@ class InstallSheetState extends State<InstallSheet> {
               onSubmitted: (_) => _save(),
               style: const TextStyle(
                   fontSize: 15, fontWeight: FontWeight.w600, color: _P.text),
-              cursorColor: _P.accent,
+              cursorColor: _P.ink,
               decoration: InputDecoration(
-                suffixText: 'км',
+                suffixText: unitOf(widget.vehicle),
                 filled: true,
                 fillColor: _P.card2,
                 contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
+                border: _border(),
+                enabledBorder: _border(),
+                focusedBorder: _border(_P.ink),
               ),
             ),
             if (_error != null)
@@ -1122,7 +1176,7 @@ class InstallSheetState extends State<InstallSheet> {
                       onPressed: _busy ? null : _save,
                       style: FilledButton.styleFrom(
                         backgroundColor: _P.accent,
-                        foregroundColor: _P.onAccent,
+                        foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14)),
                       ),

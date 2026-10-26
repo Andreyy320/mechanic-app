@@ -79,7 +79,7 @@ class _MileageSheetState extends State<_MileageSheet> {
             keyboardType: TextInputType.number,
             onSubmitted: (_) => _save(),
             decoration: InputDecoration(
-              suffixText: 'км',
+                suffixText: unitOf(widget.vehicle),
               filled: true,
               fillColor: kBg,
               border: OutlineInputBorder(
@@ -127,3 +127,4 @@ class _MileageSheetState extends State<_MileageSheet> {
     );
   }
 }
+
