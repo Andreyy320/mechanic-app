@@ -6,6 +6,7 @@ import 'package:ota_update/ota_update.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../screens/ui.dart';
 import 'api.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 
 class Updater {
   static bool _showing = false;
@@ -13,6 +14,7 @@ class Updater {
   /// Сервер отдаёт только последнюю версию и один URL,
   /// поэтому качается всегда одна последняя сборка.
   static Future<void> check(BuildContext context) async {
+    if (kDebugMode) return; // в debug-сборке обновления не предлагаем
     if (_showing) return;
     try {
       final r = await http

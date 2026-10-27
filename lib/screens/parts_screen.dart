@@ -2,7 +2,7 @@ import 'dart:math' show max, min;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api.dart';
-import 'ui.dart' show fmtKm, fmtDate, PlateBadge,unitOf;
+import 'ui.dart' show fmtKm, fmtDate, PlateBadge, unitOf, showPartActions, deletePartFlow;
 import 'vehicleDetail_screen.dart' show InstallSheet;
 
 /// Вкладка «Узлы» — рабочий список «что менять».
@@ -173,6 +173,16 @@ class _PartsScreenState extends State<PartsScreen> {
       _err = 'Нет связи с сервером';
     }
     if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _actions(_Item it) async {
+    final act = await showPartActions(context, '${it.name} · ${it.vehicle['plate']}');
+    if (!mounted) return;
+    if (act == 'replace') {
+      _replace(it);
+    } else if (act == 'delete') {
+      await deletePartFlow(context, _n(it.vehicle['id']), it.typeId, it.name);
+    }
   }
 
   Future<void> _replace(_Item it) async {
@@ -578,6 +588,7 @@ class _PartsScreenState extends State<PartsScreen> {
     final u = unitOf(it.vehicle);
     return InkWell(
       onTap: () => _replace(it),
+      onLongPress: () => _actions(it),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
         child: Row(

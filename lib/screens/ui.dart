@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/api.dart';
 import '../services/net.dart';
 
 /// Основной цвет приложения: тот же, что на экранах (гараж, ТО и доки, узлы).
@@ -317,6 +318,170 @@ class OfflineBanner extends StatelessWidget {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Меню по долгому нажатию на узел: 'replace' | 'delete' | null
+Future<String?> showPartActions(BuildContext context, String name) {
+  return showModalBottomSheet<String>(
+    context: context,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (ctx) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(name,
+                    style: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w800, color: kText)),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.build_rounded, color: kPrimary),
+              title: const Text('Зафиксировать замену',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
+              onTap: () => Navigator.pop(ctx, 'replace'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded, color: kRed),
+              title: const Text('Удалить установку',
+                  style: TextStyle(fontWeight: FontWeight.w600, color: kRed)),
+              onTap: () => Navigator.pop(ctx, 'delete'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// Подтверждение и снятие узла с машины (POST /parts/remove).
+/// Узел пропадает из «Узлов», история замен остаётся в «Истории».
+/// Возвращает true, если снято. Списки обновятся сами через Api.docsChanged.
+Future<bool> deletePartFlow(
+    BuildContext context, int vehicleId, int partTypeId, String name) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    barrierColor: Colors.black.withOpacity(0.55),
+    builder: (_) => _DeletePartDialog(name: name),
+  );
+  if (ok != true) return false;
+  try {
+    await Api.removePart(vehicleId, partTypeId);
+    Api.docsChanged.value++;
+    if (context.mounted) toast(context, 'Установка удалена');
+    return true;
+  } on ApiException catch (e) {
+    if (context.mounted) toast(context, e.message, error: true);
+  } catch (_) {
+    if (context.mounted) toast(context, 'Нет связи с сервером', error: true);
+  }
+  return false;
+}
+
+/// Окно подтверждения удаления установки
+class _DeletePartDialog extends StatelessWidget {
+  final String name;
+  const _DeletePartDialog({required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: kRed.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.delete_outline_rounded,
+                  color: kRed, size: 24),
+            ),
+            const SizedBox(height: 16),
+            const Text('Удалить установку?',
+                style: TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                    color: kText)),
+            const SizedBox(height: 8),
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                      text: name,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, color: kText)),
+                  const TextSpan(
+                      text:
+                      ' пропадёт из списка узлов этой машины. История замен сохранится.'),
+                ],
+              ),
+              style:
+              const TextStyle(fontSize: 14, height: 1.4, color: kMuted),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      style: TextButton.styleFrom(
+                        foregroundColor: kText,
+                        backgroundColor: kBg,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: const Text('Отмена',
+                          style: TextStyle(
+                              fontSize: 14.5, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: kRed,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: const Text('Удалить',
+                          style: TextStyle(
+                              fontSize: 14.5, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

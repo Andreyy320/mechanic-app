@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mechanic_app/screens/vehicle_form_sheet.dart';
 import 'doc_renew_sheet.dart';
-import '../services/api.dart';import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays, PlateBadge,unitOf;
+import '../services/api.dart';import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays, PlateBadge, unitOf, showPartActions, deletePartFlow;
 
 class _P {
   static const bg = Color(0xFFF6F7FA);
@@ -317,7 +317,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
   Future<void> _deleteVehicle() async {
     final yes = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         backgroundColor: _P.card,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -325,10 +325,10 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
         content: Text('Удалить машину ${_v['plate']} вместе с её документами?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Отмена')),
           TextButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () => Navigator.pop(ctx, true),
               child:
               const Text('Удалить', style: TextStyle(color: _P.red))),
         ],
@@ -366,6 +366,18 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
       }
     } catch (_) {}
     if (mounted) toast(context, 'Пробег обновлён');
+  }
+
+  /// Долгое нажатие на узел: заменить или удалить установку
+  Future<void> _nodeActions(_Node n) async {
+    final act = await showPartActions(context, n.title);
+    if (!mounted) return;
+    if (act == 'replace') {
+      _install(node: n);
+    } else if (act == 'delete') {
+      await deletePartFlow(context, _int(_v['id']), n.typeId, n.title);
+      // список обновится сам через Api.docsChanged
+    }
   }
 
   /// Форма «Добавить: Установка».
@@ -593,24 +605,16 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                         style:
                         const TextStyle(fontSize: 12.5, color: _P.muted)),
                     if (has) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: c.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          attention > 0
-                              ? '$attention ИЗ ${_nodes.length} ТРЕБУЮТ ВНИМАНИЯ'
-                              : 'ВСЁ В НОРМЕ',
-                          style: TextStyle(
-                              fontSize: 10.5,
-                              letterSpacing: 0.5,
-                              fontWeight: FontWeight.w800,
-                              color: c),
-                        ),
+                      const SizedBox(height: 6),
+                      Text(
+                        attention > 0
+                            ? '$attention ИЗ ${_nodes.length} ТРЕБУЮТ ВНИМАНИЯ'
+                            : 'ВСЁ В НОРМЕ',
+                        style: TextStyle(
+                            fontSize: 11,
+                            letterSpacing: 0.5,
+                            fontWeight: FontWeight.w800,
+                            color: c),
                       ),
                     ],
                   ],
@@ -765,6 +769,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
       ),
       child: InkWell(
         onTap: () => _install(node: n),
+        onLongPress: () => _nodeActions(n),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
@@ -831,20 +836,12 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 9, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: c.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(n.reset(m) ? 'ПРОБЕГ СБРОСИЛСЯ' : _status(level),
-                        style: TextStyle(
-                            fontSize: 10,
-                            letterSpacing: 0.7,
-                            fontWeight: FontWeight.w800,
-                            color: c)),
-                  ),
+                  Text(n.reset(m) ? 'ПРОБЕГ СБРОСИЛСЯ' : _status(level),
+                      style: TextStyle(
+                          fontSize: 10.5,
+                          letterSpacing: 0.7,
+                          fontWeight: FontWeight.w800,
+                          color: c)),
                   const Spacer(),
                   const Text('ЗАМЕНИТЬ ›',
                       style: TextStyle(

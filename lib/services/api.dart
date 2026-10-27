@@ -339,7 +339,14 @@ class Api {
   /// Журнал установок по всем машинам пользователя: vehicle_id, part_type_id,
   /// part_name, norm_km, warn1_km, warn2_km, installed_at, mileage_at,
   /// current_mileage, fact_km, left_km
-  static Future<List<dynamic>> parts() => _list('/parts');
+  /// all: true — вместе со снятыми с машины узлами (для экрана «История»)
+  static Future<List<dynamic>> parts({bool all = false}) =>
+      _list(all ? '/parts?all=1' : '/parts');
+
+  /// Снять узел с машины: пропадает из «Узлов», история замен остаётся
+  static Future<void> removePart(int vehicleId, int partTypeId) =>
+      _send('POST', '/parts/remove',
+          {'vehicle_id': vehicleId, 'part_type_id': partTypeId});
 
   /// «Зафиксировать замену»: installedAt в формате YYYY-MM-DD
   static Future<dynamic> addPart({

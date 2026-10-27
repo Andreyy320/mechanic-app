@@ -276,7 +276,7 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
   Future<void> _load({bool silent = false}) async {
     if (!silent) setState(() { _loading = true; _err = null; });
     try {
-      final res = await Future.wait([Api.parts(), Api.vehicleDocuments(_id)]);
+      final res = await Future.wait([Api.parts(all: true), Api.vehicleDocuments(_id)]);
       final ev = <_Ev>[];
       _parts = res[0].where((p) => _n(p['vehicle_id']) == _id).toList();
 
@@ -302,7 +302,8 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
           '${p['installed_at']}',
           '${p['part_name']}',
           'Пробег при установке: ${fmtKm(p['mileage_at'])} ${unitOf(p)}'
-              '${n > 1 ? ' · замен: $n' : ''}',
+              '${n > 1 ? ' · замен: $n' : ''}'
+              '${p['removed'] == true ? ' · снято с машины' : ''}',
           typeId: tid,
         ));
       }
@@ -627,7 +628,8 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
                         final isCurrent = i == 0;
                         final end = isCurrent ? cur : _n(list[i - 1]['mileage_at']);
                         final used = end - at;
-                        final ok = used >= 0;
+                        final lastRemoved = i == 0 && list.first['removed'] == true;
+                        final ok = used >= 0 && !lastRemoved;
                         final over = isCurrent && norm > 0 && used > norm;
 
                         return Padding(
@@ -671,7 +673,7 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
                                         color: _P.card2,
                                         borderRadius: BorderRadius.circular(6),
                                       ),
-                                      child: const Text('СЕЙЧАС',
+                                      child: Text(lastRemoved ? 'СНЯТО' : 'СЕЙЧАС',
                                           style: TextStyle(
                                               fontSize: 9.5,
                                               letterSpacing: 0.6,

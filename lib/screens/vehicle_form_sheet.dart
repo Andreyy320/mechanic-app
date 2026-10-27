@@ -19,8 +19,8 @@ Future<bool?> showVehicleForm(BuildContext context, {dynamic vehicle}) {
   return showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true, // не залезать под статус-бар и камеру
     backgroundColor: _P.card,
-
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
@@ -400,16 +400,16 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-          20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(_editing ? 'Редактировать: Машина' : 'Добавить: Машина',
-                style: const TextStyle(
+      return Padding(
+        padding: EdgeInsets.fromLTRB(
+            20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(_editing ? 'Редактировать: Машина' : 'Добавить: Машина',
+                  style: const TextStyle(
                     fontSize: 20, fontWeight: FontWeight.w800, color: _P.text)),
             _label('Гос. номер'),
             _plateField(),
