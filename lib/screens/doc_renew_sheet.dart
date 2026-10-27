@@ -1,14 +1,16 @@
 import 'dart:math' show min;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mechanic_app/screens/ui.dart' show C;
 import '../services/api.dart';
+import 'date_input.dart';
 
 class _P {
-  static const card = Color(0xFFFFFFFF);
-  static const card2 = Color(0xFFF1F3F7);
-  static const line = Color(0xFFE5E7EB);
-  static const text = Color(0xFF111827);
-  static const muted = Color(0xFF6B7280);
+  static Color get card => C.card;
+  static Color get card2 => C.card2;
+  static Color get line => C.line;
+  static Color get text => C.text;
+  static Color get muted => C.muted;
   static const accent = Color(0xFFE08A00);
   static const red = Color(0xFFDC2626);
 }
@@ -43,23 +45,6 @@ DateTime _plusMonths(DateTime d, int months) {
   return DateTime(ty, tmm + 1, min(d.day, lastDay) - 1);
 }
 
-/// Ввод даты цифрами: 15032026 -> 15.03.2026 (точки ставятся сами)
-class _DateFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
-    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
-    final cut = digits.length > 8 ? digits.substring(0, 8) : digits;
-    final b = StringBuffer();
-    for (var i = 0; i < cut.length; i++) {
-      if (i == 2 || i == 4) b.write('.');
-      b.write(cut[i]);
-    }
-    final t = b.toString();
-    return TextEditingValue(
-        text: t, selection: TextSelection.collapsed(offset: t.length));
-  }
-}
 
 /// Форма продления / добавления страховки или техосмотра.
 /// type: 'insurance' | 'inspection'. Возвращает true, если запись сохранена.
@@ -143,14 +128,14 @@ class _RenewSheetState extends State<_RenewSheet> {
           colorScheme: Theme.of(ctx).colorScheme.copyWith(
             primary: _P.accent,
             onPrimary: Colors.white,
-            surface: Colors.white,
+            surface: _P.card,
             onSurface: _P.text,
             surfaceTint: Colors.transparent,
           ),
-          datePickerTheme: const DatePickerThemeData(
-            backgroundColor: Colors.white,
+          datePickerTheme: DatePickerThemeData(
+            backgroundColor: _P.card,
             surfaceTintColor: Colors.transparent,
-            headerBackgroundColor: Colors.white,
+            headerBackgroundColor: _P.card,
             headerForegroundColor: _P.text,
           ),
           textButtonTheme: TextButtonThemeData(
@@ -207,7 +192,7 @@ class _RenewSheetState extends State<_RenewSheet> {
   Widget _lbl(String t) => Padding(
     padding: const EdgeInsets.only(bottom: 6, top: 14),
     child: Text(t,
-        style: const TextStyle(
+        style: TextStyle(
             fontSize: 13, fontWeight: FontWeight.w700, color: _P.muted)),
   );
 
@@ -219,7 +204,7 @@ class _RenewSheetState extends State<_RenewSheet> {
       borderRadius: BorderRadius.circular(14),
     ),
     child: Text(text,
-        style: const TextStyle(
+        style: TextStyle(
             fontSize: 15, fontWeight: FontWeight.w600, color: _P.text)),
   );
 
@@ -229,12 +214,12 @@ class _RenewSheetState extends State<_RenewSheet> {
     return TextField(
       controller: c,
       keyboardType: TextInputType.number,
-      inputFormatters: [_DateFormatter()],
+      inputFormatters: [DateMaskFormatter()],
       onChanged: (v) {
         if (_error != null) setState(() => _error = null);
         onChanged?.call(v);
       },
-      style: const TextStyle(
+      style: TextStyle(
           fontSize: 18,
           letterSpacing: 0.5,
           fontWeight: FontWeight.w700,
@@ -242,8 +227,8 @@ class _RenewSheetState extends State<_RenewSheet> {
       cursorColor: _P.accent,
       decoration: InputDecoration(
         hintText: 'ДД.ММ.ГГГГ',
-        hintStyle: const TextStyle(
-            fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFFD1D5DB)),
+        hintStyle: TextStyle(
+          fontSize: 16, fontWeight: FontWeight.w600, color: _P.muted),
         filled: true,
         fillColor: _P.card2,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -279,12 +264,12 @@ class _RenewSheetState extends State<_RenewSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(_hasCurrent ? 'Продлить: $name' : 'Добавить: $name',
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 20, fontWeight: FontWeight.w800, color: _P.text)),
             if (cur != null) ...[
               const SizedBox(height: 4),
               Text('Сейчас действует до ${_ru(cur)}',
-                  style: const TextStyle(fontSize: 13, color: _P.muted)),
+                  style: TextStyle(fontSize: 13, color: _P.muted)),
             ],
             _lbl('Машина'),
             _readOnly('${v['plate']} ${v['model']}'),
@@ -303,7 +288,7 @@ class _RenewSheetState extends State<_RenewSheet> {
               Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: Text(_error!,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: _P.red, fontWeight: FontWeight.w500)),
               ),
             const SizedBox(height: 20),
@@ -327,7 +312,7 @@ class _RenewSheetState extends State<_RenewSheet> {
                           child: CircularProgressIndicator(
                               strokeWidth: 2.5, color: Colors.white))
                           : Text(_hasCurrent ? 'ПРОДЛИТЬ' : 'СОХРАНИТЬ',
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 14,
                               letterSpacing: 0.4,
                               fontWeight: FontWeight.w800)),

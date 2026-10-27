@@ -2,21 +2,23 @@ import 'dart:math' show max;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mechanic_app/screens/vehicle_form_sheet.dart';
+import 'date_input.dart';
 import 'doc_renew_sheet.dart';
-import '../services/api.dart';import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays, PlateBadge, unitOf, showPartActions, deletePartFlow;
+import '../services/api.dart';
+import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays, PlateBadge, unitOf, showPartActions, deletePartFlow, C, AppTheme;
 
 class _P {
-  static const bg = Color(0xFFF6F7FA);
-  static const card = Color(0xFFFFFFFF);
-  static const card2 = Color(0xFFF1F3F7);
-  static const line = Color(0xFFE5E7EB);
-  static const text = Color(0xFF111827);
-  static const muted = Color(0xFF6B7280);
+  static Color get bg => C.bg;
+  static Color get card => C.card;
+  static Color get card2 => C.card2;
+  static Color get line => C.line;
+  static Color get text => C.text;
+  static Color get muted => C.muted;
+  static Color get ink => C.text; // в тёмной теме светлый
   static const accent = Color(0xFFE08A00);
   static const onAccent = Color(0xFFFFFFFF);
   static const green = Color(0xFF16A34A);
   static const red = Color(0xFFDC2626);
-  static const ink = Color(0xFF111827); // чёрный для формы установки
 }
 
 /// Узел, который реально установлен на машине (по записям из /parts).
@@ -104,23 +106,6 @@ DateTime? _parseRu(String s) {
   return r;
 }
 
-/// Ввод даты цифрами: 15032026 -> 15.03.2026 (точки ставятся сами)
-class _DateFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-      TextEditingValue oldValue, TextEditingValue newValue) {
-    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
-    final cut = digits.length > 8 ? digits.substring(0, 8) : digits;
-    final b = StringBuffer();
-    for (var i = 0; i < cut.length; i++) {
-      if (i == 2 || i == 4) b.write('.');
-      b.write(cut[i]);
-    }
-    final t = b.toString();
-    return TextEditingValue(
-        text: t, selection: TextSelection.collapsed(offset: t.length));
-  }
-}
 
 class VehicleDetailScreen extends StatefulWidget {
   final dynamic vehicle;
@@ -210,7 +195,6 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
       }
 
       if (mounted) {
-        final normKey = _v['mileage_unit'] == 'mi' ? 'norm_mi' : 'norm_km';
 
         setState(() {
           _nodes = nodes;
@@ -270,16 +254,16 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.edit_outlined, color: _P.text),
-                title: const Text('Изменить',
+                leading: Icon(Icons.edit_outlined, color: _P.text),
+                title: Text('Изменить',
                     style: TextStyle(
                         color: _P.text, fontWeight: FontWeight.w700)),
                 onTap: () => Navigator.pop(ctx, 'edit'),
               ),
               ListTile(
                 leading:
-                const Icon(Icons.delete_outline_rounded, color: _P.red),
-                title: const Text('Удалить',
+                Icon(Icons.delete_outline_rounded, color: _P.red),
+                title: Text('Удалить',
                     style: TextStyle(
                         color: _P.red, fontWeight: FontWeight.w700)),
                 onTap: () => Navigator.pop(ctx, 'delete'),
@@ -321,16 +305,16 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
         backgroundColor: _P.card,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Подтверждение удаления'),
+        title: Text('Подтверждение удаления'),
         content: Text('Удалить машину ${_v['plate']} вместе с её документами?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Отмена')),
+              child: Text('Отмена')),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
               child:
-              const Text('Удалить', style: TextStyle(color: _P.red))),
+              Text('Удалить', style: TextStyle(color: _P.red))),
         ],
       ),
     );
@@ -388,7 +372,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
       context: context,
 
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: _P.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -426,12 +410,14 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         foregroundColor: _P.text,
-        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        systemOverlayStyle: AppTheme.dark.value
+            ? SystemUiOverlayStyle.light
+            : SystemUiOverlayStyle.dark,
         titleSpacing: 0,
         title: Text('${v['model']}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 20, fontWeight: FontWeight.w800, color: _P.text)),
         actions: [
           GestureDetector(
@@ -441,11 +427,11 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
               width: 36,
               height: 32,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: _P.card,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: _P.line),
               ),
-              child: const Icon(Icons.more_horiz_rounded,
+              child: Icon(Icons.more_horiz_rounded,
                   size: 20, color: _P.text),
             ),
           ),
@@ -459,7 +445,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
         children: [
           Expanded(
             child: _loading
-                ? const Center(
+                ? Center(
                 child: CircularProgressIndicator(color: _P.accent))
                 : _err != null
                 ? Center(
@@ -492,12 +478,12 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: _loading ? null : () => _install(),
-                  icon: const Icon(Icons.add_circle_outline_rounded, size: 22),
-                  label: const Text('ДОБАВИТЬ УСТАНОВКУ'),
+                  icon: Icon(Icons.add_circle_outline_rounded, size: 22),
+                  label: Text('ДОБАВИТЬ УСТАНОВКУ'),
                   style: FilledButton.styleFrom(
                     backgroundColor: _P.accent,
                     foregroundColor: _P.onAccent,
-                    textStyle: const TextStyle(
+                    textStyle: TextStyle(
                         fontSize: 13.5,
                         letterSpacing: 0.4,
                         fontWeight: FontWeight.w800),
@@ -521,7 +507,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: _P.line),
       ),
-      child: const Column(
+      child: Column(
         children: [
           Icon(Icons.build_outlined, size: 36, color: _P.muted),
           SizedBox(height: 10),
@@ -592,7 +578,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Ресурс узлов',
+                    Text('Ресурс узлов',
                         style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
@@ -603,7 +589,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                             ? 'Средний ресурс · узлов: ${_nodes.length}'
                             : 'Нет данных об установке',
                         style:
-                        const TextStyle(fontSize: 12.5, color: _P.muted)),
+                        TextStyle(fontSize: 12.5, color: _P.muted)),
                     if (has) ...[
                       const SizedBox(height: 6),
                       Text(
@@ -635,14 +621,14 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('ПРОБЕГ',
+                      Text('ПРОБЕГ',
                           style: TextStyle(
                               fontSize: 10,
                               letterSpacing: 0.9,
                               fontWeight: FontWeight.w800,
                               color: _P.muted)),
                       Text('${fmtKm(m)} ${unitOf(_v)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 19,
                               fontWeight: FontWeight.w800,
                               color: _P.text)),
@@ -651,11 +637,11 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                 ),
                 TextButton.icon(
                   onPressed: _updateMileage,
-                  icon: const Icon(Icons.sync_rounded, size: 16),
-                  label: const Text('ОБНОВИТЬ'),
+                  icon: Icon(Icons.sync_rounded, size: 16),
+                  label: Text('ОБНОВИТЬ'),
                   style: TextButton.styleFrom(
                     foregroundColor: _P.accent,
-                    textStyle: const TextStyle(
+                    textStyle: TextStyle(
                         fontSize: 12,
                         letterSpacing: 0.4,
                         fontWeight: FontWeight.w800),
@@ -712,7 +698,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                     child: Text(label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
                             color: _P.text)),
@@ -723,7 +709,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
               Text(to == null ? 'Нет данных' : 'до ${fmtDate(to)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 12, color: _P.muted)),
+                  style: TextStyle(fontSize: 12, color: _P.muted)),
               const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -739,7 +725,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                   ),
                   const SizedBox(width: 4),
                   Text(to == null ? 'ДОБАВИТЬ ›' : 'ПРОДЛИТЬ ›',
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 9.5,
                           letterSpacing: 0.4,
                           fontWeight: FontWeight.w800,
@@ -794,14 +780,14 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                         Text(n.title,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 15.5,
                                 fontWeight: FontWeight.w700,
                                 color: _P.text)),
                         const SizedBox(height: 2),
                         Text(
                             'Установлено ${fmtDate(n.installedAt)} · ${fmtKm(n.lastKm)} $u',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 11.5, color: _P.muted)),
                       ],
                     ),
@@ -831,7 +817,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                     : left >= 0
                     ? 'Осталось ${fmtKm(left)} $u из ${fmtKm(n.normKm)}'
                     : 'Перепробег ${fmtKm(-left)} $u · интервал ${fmtKm(n.normKm)}',
-                style: const TextStyle(fontSize: 12, color: _P.muted),
+                style: TextStyle(fontSize: 12, color: _P.muted),
               ),
               const SizedBox(height: 10),
               Row(
@@ -843,7 +829,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
                           fontWeight: FontWeight.w800,
                           color: c)),
                   const Spacer(),
-                  const Text('ЗАМЕНИТЬ ›',
+                  Text('ЗАМЕНИТЬ ›',
                       style: TextStyle(
                           fontSize: 11.5,
                           letterSpacing: 0.5,
@@ -910,18 +896,18 @@ class InstallSheetState extends State<InstallSheet> {
           colorScheme: Theme.of(ctx).colorScheme.copyWith(
             primary: _P.accent,
             onPrimary: Colors.white,
-            surface: Colors.white,
+            surface: _P.card,
             onSurface: _P.text,
             surfaceTint: Colors.transparent,
           ),
-          datePickerTheme: const DatePickerThemeData(
-            backgroundColor: Colors.white,
+          datePickerTheme: DatePickerThemeData(
+            backgroundColor: _P.card,
             surfaceTintColor: Colors.transparent,
-            headerBackgroundColor: Colors.white,
+            headerBackgroundColor: _P.card,
             headerForegroundColor: _P.text,
           ),
           textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(foregroundColor: _P.ink),
+            style: TextButton.styleFrom(foregroundColor: _P.accent),
           ),
         ),
         child: child!,
@@ -946,29 +932,29 @@ class InstallSheetState extends State<InstallSheet> {
     return TextField(
       controller: _dateC,
       keyboardType: TextInputType.number,
-      inputFormatters: [_DateFormatter()],
+      inputFormatters: [DateMaskFormatter()],
       onChanged: (_) {
         if (_error != null) setState(() => _error = null);
       },
-      style: const TextStyle(
+      style: TextStyle(
           fontSize: 18,
           letterSpacing: 0.5,
           fontWeight: FontWeight.w700,
           color: _P.text),
-      cursorColor: _P.ink,
+      cursorColor: _P.accent,
       decoration: InputDecoration(
         hintText: 'ДД.ММ.ГГГГ',
-        hintStyle: const TextStyle(
+        hintStyle: TextStyle(
             fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFFD1D5DB)),
         filled: true,
         fillColor: _P.card2,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         border: _border(),
         enabledBorder: _border(),
-        focusedBorder: _border(_P.ink),
+        focusedBorder: _border(_P.accent),
         suffixIcon: IconButton(
           tooltip: 'Выбрать в календаре',
-          icon: const Icon(Icons.calendar_month_rounded, color: _P.ink),
+          icon: Icon(Icons.calendar_month_rounded, color: _P.accent),
           onPressed: _pickDate,
         ),
       ),
@@ -1019,7 +1005,7 @@ class InstallSheetState extends State<InstallSheet> {
   Widget _label(String t) => Padding(
     padding: const EdgeInsets.only(bottom: 6, top: 14),
     child: Text(t,
-        style: const TextStyle(
+        style: TextStyle(
             fontSize: 13, fontWeight: FontWeight.w700, color: _P.muted)),
   );
 
@@ -1034,7 +1020,7 @@ class InstallSheetState extends State<InstallSheet> {
       children: [
         Expanded(
           child: Text(text,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 15, fontWeight: FontWeight.w600, color: _P.text)),
         ),
         if (icon != null) Icon(icon, size: 20, color: _P.muted),
@@ -1049,10 +1035,10 @@ class InstallSheetState extends State<InstallSheet> {
       data: base.copyWith(
         colorScheme: base.colorScheme.copyWith(
           primary: _P.ink,
-          surface: Colors.white,
+          surface: _P.card,
           surfaceTint: Colors.transparent,
-          surfaceContainer: Colors.white,
-          surfaceContainerHigh: Colors.white,
+          surfaceContainer: _P.card,
+          surfaceContainerHigh: _P.card,
           primaryContainer: _P.card2,
         ),
         textSelectionTheme: TextSelectionThemeData(
@@ -1071,7 +1057,7 @@ class InstallSheetState extends State<InstallSheet> {
           enableFilter: true,
           requestFocusOnTap: true,
           menuHeight: 260,
-          textStyle: const TextStyle(
+          textStyle: TextStyle(
               fontSize: 15, fontWeight: FontWeight.w600, color: _P.text),
           inputDecorationTheme: InputDecorationTheme(
             filled: true,
@@ -1080,16 +1066,16 @@ class InstallSheetState extends State<InstallSheet> {
             const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
             border: _border(),
             enabledBorder: _border(),
-            focusedBorder: _border(_P.ink),
+            focusedBorder: _border(_P.accent),
           ),
           menuStyle: MenuStyle(
-            backgroundColor: const MaterialStatePropertyAll(Colors.white),
+            backgroundColor: MaterialStatePropertyAll(_P.card),
             surfaceTintColor:
             const MaterialStatePropertyAll(Colors.transparent),
             elevation: const MaterialStatePropertyAll(4),
             shape: MaterialStatePropertyAll(RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
-              side: const BorderSide(color: _P.line),
+              side: BorderSide(color: _P.line),
             )),
           ),
           dropdownMenuEntries: [
@@ -1098,9 +1084,8 @@ class InstallSheetState extends State<InstallSheet> {
                 value: _int(t['id']),
                 label: '${t['name']}',
                 style: ButtonStyle(
-                  backgroundColor:
-                  const MaterialStatePropertyAll(Colors.white),
-                  foregroundColor: const MaterialStatePropertyAll(_P.text),
+                  backgroundColor: MaterialStatePropertyAll(_P.card),
+                  foregroundColor: MaterialStatePropertyAll(_P.text),
                   textStyle: const MaterialStatePropertyAll(TextStyle(
                       fontSize: 15, fontWeight: FontWeight.w600)),
                   overlayColor: MaterialStatePropertyAll(_P.card2),
@@ -1124,7 +1109,7 @@ class InstallSheetState extends State<InstallSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Добавить: Установка',
+            Text('Добавить: Установка',
                 style: TextStyle(
                     fontSize: 20, fontWeight: FontWeight.w800, color: _P.text)),
             _label('Машина'),
@@ -1142,25 +1127,27 @@ class InstallSheetState extends State<InstallSheet> {
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               onSubmitted: (_) => _save(),
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 15, fontWeight: FontWeight.w600, color: _P.text),
               cursorColor: _P.ink,
               decoration: InputDecoration(
                 suffixText: unitOf(widget.vehicle),
+
+                suffixStyle: TextStyle(color: _P.muted, fontWeight: FontWeight.w600),
                 filled: true,
                 fillColor: _P.card2,
                 contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
                 border: _border(),
                 enabledBorder: _border(),
-                focusedBorder: _border(_P.ink),
+                focusedBorder: _border(_P.muted),
               ),
             ),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: Text(_error!,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: _P.red, fontWeight: FontWeight.w500)),
               ),
             const SizedBox(height: 20),
@@ -1183,7 +1170,7 @@ class InstallSheetState extends State<InstallSheet> {
                           height: 22,
                           child: CircularProgressIndicator(
                               strokeWidth: 2.5, color: Colors.white))
-                          : const Text('СОХРАНИТЬ',
+                          : Text('СОХРАНИТЬ',
                           style: TextStyle(
                               fontSize: 14,
                               letterSpacing: 0.4,
@@ -1203,7 +1190,7 @@ class InstallSheetState extends State<InstallSheet> {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14)),
                     ),
-                    child: const Text('Отмена',
+                    child: Text('Отмена',
                         style: TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ),

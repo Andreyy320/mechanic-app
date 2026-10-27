@@ -56,7 +56,9 @@ class Api {
     _lastSync = null;
     _inflight = null;
     _ver = null;
-    await _storage.deleteAll();
+    await _storage.delete(key: 'token');
+    await _storage.delete(key: 'name');
+    await _storage.delete(key: 'role');
   }
 
   /// Ответ сервера может быть не JSON (например, страница ошибки от nginx) —

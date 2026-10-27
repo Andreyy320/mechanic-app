@@ -2,7 +2,7 @@ import 'dart:math' show max, min;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api.dart';
-import 'ui.dart' show fmtKm, fmtDate, PlateBadge, unitOf, showPartActions, deletePartFlow;
+import 'ui.dart' show fmtKm, fmtDate, PlateBadge, unitOf, showPartActions, deletePartFlow, C, AppTheme;
 import 'vehicleDetail_screen.dart' show InstallSheet;
 
 /// Вкладка «Узлы» — рабочий список «что менять».
@@ -13,11 +13,12 @@ import 'vehicleDetail_screen.dart' show InstallSheet;
 /// Пороги те же, что в карточке машины и в гараже.
 
 class _P {
-  static const bg = Color(0xFFF6F7FA);
-  static const card = Color(0xFFFFFFFF);
-  static const line = Color(0xFFE5E7EB);
-  static const text = Color(0xFF111827);
-  static const muted = Color(0xFF6B7280);
+  static Color get bg => C.bg;
+  static Color get card => C.card;
+  static Color get card2 => C.card2;
+  static Color get line => C.line;
+  static Color get text => C.text;
+  static Color get muted => C.muted;
   static const accent = Color(0xFFE08A00);
   static const green = Color(0xFF16A34A);
   static const red = Color(0xFFDC2626);
@@ -238,8 +239,10 @@ class _PartsScreenState extends State<PartsScreen> {
         centerTitle: false,
         toolbarHeight: 68,
         titleSpacing: 16,
-        systemOverlayStyle: SystemUiOverlayStyle.dark,
-        title: const Text('Ресурс запчастей',
+        systemOverlayStyle: AppTheme.dark.value
+            ? SystemUiOverlayStyle.light
+            : SystemUiOverlayStyle.dark,
+        title: Text('Ресурс запчастей',
             style: TextStyle(
                 fontSize: 22,
                 height: 1.1,
@@ -252,7 +255,7 @@ class _PartsScreenState extends State<PartsScreen> {
 
   Widget _body() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: _P.accent));
+      return Center(child: CircularProgressIndicator(color: _P.accent));
     }
     if (_err != null) return _error();
 
@@ -313,7 +316,7 @@ class _PartsScreenState extends State<PartsScreen> {
                     padding: const EdgeInsets.only(left: 4, top: 4),
                     child: Text(
                         '${_byCar ? 'МАШИНЫ' : 'ЗАПЧАСТИ'} · ${groups.length}',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 11,
                             letterSpacing: 1.1,
                             fontWeight: FontWeight.w800,
@@ -355,13 +358,13 @@ class _PartsScreenState extends State<PartsScreen> {
           const SizedBox(height: 12),
           Text(title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 15, fontWeight: FontWeight.w700, color: _P.text)),
           if (sub != null) ...[
             const SizedBox(height: 4),
             Text(sub,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12.5, color: _P.muted)),
+                style: TextStyle(fontSize: 12.5, color: _P.muted)),
           ],
         ],
       ),
@@ -392,7 +395,7 @@ class _PartsScreenState extends State<PartsScreen> {
                       color: n == 0 && f != _Filter.all ? _P.muted : c)),
               const SizedBox(height: 2),
               Text(label,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                       color: _P.muted)),
@@ -410,12 +413,12 @@ class _PartsScreenState extends State<PartsScreen> {
     );
     return TextField(
       onChanged: (v) => setState(() => _query = v),
-      style: const TextStyle(color: _P.text),
+      style: TextStyle(color: _P.text),
       cursorColor: _P.accent,
       decoration: InputDecoration(
         hintText: 'Запчасть, номер или модель',
-        hintStyle: const TextStyle(color: _P.muted),
-        prefixIcon: const Icon(Icons.search_rounded, color: _P.muted),
+        hintStyle: TextStyle(color: _P.muted),
+        prefixIcon: Icon(Icons.search_rounded, color: _P.muted),
         filled: true,
         fillColor: _P.card,
         contentPadding: const EdgeInsets.symmetric(vertical: 12),
@@ -456,7 +459,7 @@ class _PartsScreenState extends State<PartsScreen> {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: const Color(0xFFE9ECF2),
+        color: C.card2,
         borderRadius: BorderRadius.circular(13),
       ),
       child: Row(
@@ -543,7 +546,7 @@ class _PartsScreenState extends State<PartsScreen> {
                         Text(_byCar ? '${first.vehicle['model']}' : first.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 15.5,
                                 fontWeight: FontWeight.w800,
                                 color: _P.text)),
@@ -551,7 +554,7 @@ class _PartsScreenState extends State<PartsScreen> {
                             _byCar
                                 ? 'узлов: ${g.items.length}'
                                 : 'машин: ${g.items.length}',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 11.5, color: _P.muted)),
                       ],
                     ),
@@ -559,7 +562,7 @@ class _PartsScreenState extends State<PartsScreen> {
                   if (g.red > 0) _count(g.red, _P.red),
                   if (g.soon > 0) _count(g.soon, _P.accent),
                   if (g.red == 0 && g.soon == 0)
-                    const Icon(Icons.check_circle_rounded,
+                    Icon(Icons.check_circle_rounded,
                         size: 20, color: _P.green),
                   const SizedBox(width: 4),
                   Icon(
@@ -573,7 +576,7 @@ class _PartsScreenState extends State<PartsScreen> {
           ),
           if (open)
             for (final it in g.items) ...[
-              const Divider(height: 1, thickness: 1, color: _P.line),
+              Divider(height: 1, thickness: 1, color: _P.line),
               _row(it),
             ],
         ],
@@ -613,7 +616,7 @@ class _PartsScreenState extends State<PartsScreen> {
                   Text(_byCar ? it.name : '${it.vehicle['model']}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: _P.text)),
@@ -626,7 +629,7 @@ class _PartsScreenState extends State<PartsScreen> {
                           : 'Перепробег ${fmtKm(-left)} $u · с ${fmtDate(it.installedAt)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 11.5, color: _P.muted)),
+                      style: TextStyle(fontSize: 11.5, color: _P.muted)),
                   const SizedBox(height: 6),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
@@ -671,11 +674,11 @@ class _PartsScreenState extends State<PartsScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 44, color: _P.muted),
+            Icon(Icons.cloud_off_rounded, size: 44, color: _P.muted),
             const SizedBox(height: 14),
             Text(_err ?? 'Не удалось загрузить данные',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: _P.text)),
@@ -688,7 +691,7 @@ class _PartsScreenState extends State<PartsScreen> {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Повторить'),
+              child: Text('Повторить'),
             ),
           ],
         ),

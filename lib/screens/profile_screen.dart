@@ -3,14 +3,15 @@ import 'package:flutter/services.dart';
 import '../services/api.dart';
 import 'login_screen.dart';
 import 'history_screen.dart';
+import 'ui.dart' show C, AppTheme;
 
 class _P {
-  static const bg = Color(0xFFF6F7FA);
-  static const card = Color(0xFFFFFFFF);
-  static const card2 = Color(0xFFF1F3F7);
-  static const line = Color(0xFFE5E7EB);
-  static const text = Color(0xFF111827);
-  static const muted = Color(0xFF6B7280);
+  static Color get bg => C.bg;
+  static Color get card => C.card;
+  static Color get card2 => C.card2;
+  static Color get line => C.line;
+  static Color get text => C.text;
+  static Color get muted => C.muted;
   static const accent = Color(0xFFE08A00);
   static const red = Color(0xFFDC2626);
 }
@@ -87,8 +88,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         centerTitle: false,
         toolbarHeight: 68,
         titleSpacing: 16,
-        systemOverlayStyle: SystemUiOverlayStyle.dark,
-        title: const Text('Профиль',
+        systemOverlayStyle: AppTheme.dark.value
+            ? SystemUiOverlayStyle.light
+            : SystemUiOverlayStyle.dark,
+        actions: [
+          ValueListenableBuilder<bool>(
+            valueListenable: AppTheme.dark,
+            builder: (_, d, __) => IconButton(
+              icon: Icon(
+                  d ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                  color: _P.text),
+              onPressed: AppTheme.toggle,
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+        title: Text('Профиль',
             style: TextStyle(
                 fontSize: 22,
                 height: 1.1,
@@ -118,7 +133,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     border: Border.all(color: _P.accent.withOpacity(0.45)),
                   ),
                   child: Text(name[0].toUpperCase(),
-                      style: const TextStyle(
+                      style: TextStyle(
+
                           fontSize: 26,
                           fontWeight: FontWeight.w800,
                           color: _P.accent)),
@@ -131,7 +147,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Text(name,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
+
                               fontSize: 20,
                               height: 1.15,
                               fontWeight: FontWeight.w800,
@@ -149,7 +166,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             clipBehavior: Clip.antiAlias,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(18),
-              side: const BorderSide(color: _P.line),
+              side: BorderSide(
+color: _P.line),
             ),
             child: Column(
               children: [
@@ -158,12 +176,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     MaterialPageRoute(builder: (_) => const HistoryScreen()),
                   );
                 }),
-                const Divider(height: 1, thickness: 1, color: _P.line),
+                Divider(
+height: 1, thickness: 1, color: _P.line),
                 _tile(Icons.person_outline_rounded, 'Сменить логин', _changeLogin),
-                const Divider(height: 1, thickness: 1, color: _P.line),
+                Divider(
+height: 1, thickness: 1, color: _P.line),
                 _tile(Icons.lock_outline_rounded, 'Сменить пароль',
                     _changePassword),
-                const Divider(height: 1, thickness: 1, color: _P.line),
+                Divider(
+height: 1, thickness: 1, color: _P.line),
                 _tile(Icons.logout_rounded, 'Выйти', _logout,
                     chevron: false),
               ],
@@ -175,7 +196,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _tile(IconData icon, String title, VoidCallback onTap,
-      {Color color = _P.text, bool chevron = true}) {
+      {Color? color, bool chevron = true}) {
+    final col = color ?? _P.text;
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -186,10 +208,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: color == _P.red ? _P.red.withOpacity(0.1) : _P.card2,
+                color: col == _P.red ? _P.red.withOpacity(0.1) : _P.card2,
                 borderRadius: BorderRadius.circular(11),
               ),
-              child: Icon(icon, color: color, size: 20),
+              child: Icon(icon, color: col, size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -197,10 +219,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: color)),
+                      color: col)),
             ),
-            if (chevron)
-              const Icon(Icons.chevron_right_rounded, color: _P.muted),
+            if (chevron) Icon(Icons.chevron_right_rounded, color: _P.muted),
           ],
         ),
       ),
@@ -229,17 +250,20 @@ class _LogoutSheet extends StatelessWidget {
                   color: _P.accent.withOpacity(0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.logout_rounded,
+                child: Icon(
+Icons.logout_rounded,
                     color: _P.accent, size: 26),
               ),
             ),
             const SizedBox(height: 16),
-            const Text('Выйти из аккаунта?',
+            Text(
+'Выйти из аккаунта?',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     fontSize: 20, fontWeight: FontWeight.w800, color: _P.text)),
             const SizedBox(height: 6),
-            const Text('Чтобы войти снова, понадобятся логин и пароль.',
+            Text(
+'Чтобы войти снова, понадобятся логин и пароль.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13.5, color: _P.muted)),
             const SizedBox(height: 22),
@@ -256,7 +280,8 @@ class _LogoutSheet extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14)),
                       ),
-                      child: const Text('Отмена',
+                      child: Text(
+'Отмена',
                           style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w700)),
@@ -275,7 +300,8 @@ class _LogoutSheet extends StatelessWidget {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14)),
                       ),
-                      child: const Text('Выйти',
+                      child: Text(
+'Выйти',
                           style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w700)),
@@ -350,7 +376,8 @@ class _PasswordSheetState extends State<_PasswordSheet> {
   Widget _label(String t) => Padding(
     padding: const EdgeInsets.only(bottom: 6, top: 14),
     child: Text(t,
-        style: const TextStyle(
+        style: TextStyle(
+
             fontSize: 13, fontWeight: FontWeight.w700, color: _P.muted)),
   );
 
@@ -359,7 +386,8 @@ class _PasswordSheetState extends State<_PasswordSheet> {
     obscureText: !_show,
     autocorrect: false,
     enableSuggestions: false,
-    style: const TextStyle(
+    style: TextStyle(
+
         fontSize: 15, fontWeight: FontWeight.w600, color: _P.text),
     cursorColor: _P.accent,
     decoration: InputDecoration(
@@ -385,7 +413,8 @@ class _PasswordSheetState extends State<_PasswordSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Сменить пароль',
+            Text(
+'Сменить пароль',
                 style: TextStyle(
                     fontSize: 20, fontWeight: FontWeight.w800, color: _P.text)),
             _label('Текущий пароль'),
@@ -408,7 +437,8 @@ class _PasswordSheetState extends State<_PasswordSheet> {
               Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: Text(_error!,
-                    style: const TextStyle(
+                    style: TextStyle(
+
                         color: _P.red, fontWeight: FontWeight.w500)),
               ),
             const SizedBox(height: 20),
@@ -431,7 +461,8 @@ class _PasswordSheetState extends State<_PasswordSheet> {
                           height: 22,
                           child: CircularProgressIndicator(
                               strokeWidth: 2.5, color: Colors.white))
-                          : const Text('Сохранить',
+                          : Text(
+'Сохранить',
                           style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w700)),
@@ -450,7 +481,8 @@ class _PasswordSheetState extends State<_PasswordSheet> {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14)),
                     ),
-                    child: const Text('Отмена',
+                    child: Text(
+'Отмена',
                         style: TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ),
@@ -516,7 +548,8 @@ class _LoginChangeSheetState extends State<_LoginChangeSheet> {
   Widget _label(String t) => Padding(
     padding: const EdgeInsets.only(bottom: 6, top: 14),
     child: Text(t,
-        style: const TextStyle(
+        style: TextStyle(
+
             fontSize: 13, fontWeight: FontWeight.w700, color: _P.muted)),
   );
 
@@ -542,7 +575,8 @@ class _LoginChangeSheetState extends State<_LoginChangeSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Сменить логин',
+            Text(
+'Сменить логин',
                 style: TextStyle(
                     fontSize: 20, fontWeight: FontWeight.w800, color: _P.text)),
             _label('Новый логин'),
@@ -550,7 +584,8 @@ class _LoginChangeSheetState extends State<_LoginChangeSheet> {
               controller: _login,
               autocorrect: false,
               enableSuggestions: false,
-              style: const TextStyle(
+              style: TextStyle(
+
                   fontSize: 15, fontWeight: FontWeight.w600, color: _P.text),
               cursorColor: _P.accent,
               decoration: _dec(),
@@ -562,7 +597,8 @@ class _LoginChangeSheetState extends State<_LoginChangeSheet> {
               autocorrect: false,
               enableSuggestions: false,
               onSubmitted: (_) => _save(),
-              style: const TextStyle(
+              style: TextStyle(
+
                   fontSize: 15, fontWeight: FontWeight.w600, color: _P.text),
               cursorColor: _P.accent,
               decoration: _dec(
@@ -580,7 +616,8 @@ class _LoginChangeSheetState extends State<_LoginChangeSheet> {
               Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: Text(_error!,
-                    style: const TextStyle(
+                    style: TextStyle(
+
                         color: _P.red, fontWeight: FontWeight.w500)),
               ),
             const SizedBox(height: 20),
@@ -603,7 +640,8 @@ class _LoginChangeSheetState extends State<_LoginChangeSheet> {
                           height: 22,
                           child: CircularProgressIndicator(
                               strokeWidth: 2.5, color: Colors.white))
-                          : const Text('Сохранить',
+                          : Text(
+'Сохранить',
                           style: TextStyle(
                               fontSize: 14, fontWeight: FontWeight.w700)),
                     ),
@@ -621,7 +659,8 @@ class _LoginChangeSheetState extends State<_LoginChangeSheet> {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14)),
                     ),
-                    child: const Text('Отмена',
+                    child: Text(
+'Отмена',
                         style: TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ),

@@ -1,7 +1,31 @@
 import 'package:flutter/material.dart';
 import '../services/api.dart';
 import '../services/net.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+class AppTheme {
+  static final dark = ValueNotifier<bool>(false);
+  static const _s = FlutterSecureStorage();
+
+  static Future<void> load() async {
+    dark.value = (await _s.read(key: 'dark')) == '1';
+  }
+
+  static Future<void> toggle() async {
+    dark.value = !dark.value;
+    await _s.write(key: 'dark', value: dark.value ? '1' : '0');
+  }
+}
+
+class C {
+  static bool get _d => AppTheme.dark.value;
+  static Color get bg => _d ? const Color(0xFF0F1115) : const Color(0xFFF6F7FA);
+  static Color get card => _d ? const Color(0xFF1A1D23) : Colors.white;
+  static Color get card2 => _d ? const Color(0xFF252932) : const Color(0xFFF1F3F7);
+  static Color get line => _d ? const Color(0xFF2D323B) : const Color(0xFFE5E7EB);
+  static Color get text => _d ? const Color(0xFFF3F4F6) : const Color(0xFF111827);
+  static Color get muted => _d ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280);
+}
 /// Основной цвет приложения: тот же, что на экранах (гараж, ТО и доки, узлы).
 const kPrimary = Color(0xFFE08A00);
 const kText = Color(0xFF111827);
@@ -13,51 +37,35 @@ const kAmber = Color(0xFFD97706);
 const kRed = Color(0xFFDC2626);
 
 /// Единая тема приложения. Подключается в main.dart: theme: buildTheme()
-ThemeData buildTheme() => ThemeData(
-  useMaterial3: true,
-  scaffoldBackgroundColor: kBg,
-  colorScheme: ColorScheme.fromSeed(seedColor: kPrimary, surface: Colors.white),
-  filledButtonTheme: FilledButtonThemeData(
-    style: FilledButton.styleFrom(
-      backgroundColor: kPrimary,
-      foregroundColor: Colors.white,
+ThemeData buildTheme() {
+  final d = AppTheme.dark.value;
+  return ThemeData(
+    useMaterial3: true,
+    brightness: d ? Brightness.dark : Brightness.light,
+    scaffoldBackgroundColor: C.bg,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: kPrimary,
+      brightness: d ? Brightness.dark : Brightness.light,
+      surface: C.card,
     ),
-  ),
-  elevatedButtonTheme: ElevatedButtonThemeData(
-    style: ElevatedButton.styleFrom(
-      backgroundColor: kPrimary,
-      foregroundColor: Colors.white,
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+          backgroundColor: kPrimary, foregroundColor: Colors.white),
     ),
-  ),
-  snackBarTheme: SnackBarThemeData(
-    behavior: SnackBarBehavior.floating,
-    backgroundColor: kText,
-    contentTextStyle: const TextStyle(
-        color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-    insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-  ),
-  navigationBarTheme: NavigationBarThemeData(
-    backgroundColor: Colors.white,
-    surfaceTintColor: Colors.transparent,
-    indicatorColor: kPrimary.withOpacity(0.14),
-    iconTheme: MaterialStateProperty.resolveWith<IconThemeData?>(
-          (s) => IconThemeData(
-        color: s.contains(MaterialState.selected) ? kPrimary : kMuted,
-      ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+          backgroundColor: kPrimary, foregroundColor: Colors.white),
     ),
-    labelTextStyle: MaterialStateProperty.resolveWith<TextStyle?>(
-          (s) => TextStyle(
-        fontSize: 12,
-        fontWeight: s.contains(MaterialState.selected)
-            ? FontWeight.w700
-            : FontWeight.w600,
-        color: s.contains(MaterialState.selected) ? kText : kMuted,
-      ),
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: d ? C.card2 : const Color(0xFF111827),
+      contentTextStyle: const TextStyle(
+          color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
     ),
-  ),
-);
-
+  );
+}
 int? daysOf(dynamic v) {
   if (v == null) return null;
   if (v is num) return v.round();
@@ -208,7 +216,7 @@ void toast(BuildContext context, String text, {bool error = false}) {
   m.showSnackBar(SnackBar(
     behavior: SnackBarBehavior.floating,
     margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-    backgroundColor: Colors.white,
+    backgroundColor: C.card,
     elevation: 6,
     duration: const Duration(milliseconds: 2500),
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -223,8 +231,8 @@ void toast(BuildContext context, String text, {bool error = false}) {
         const SizedBox(width: 10),
         Expanded(
           child: Text(text,
-              style: const TextStyle(
-                  fontSize: 14, fontWeight: FontWeight.w600, color: kText)),
+              style: TextStyle(
+                  fontSize: 14, fontWeight: FontWeight.w600, color: C.text)),
         ),
       ],
     ),
@@ -328,7 +336,7 @@ class OfflineBanner extends StatelessWidget {
 Future<String?> showPartActions(BuildContext context, String name) {
   return showModalBottomSheet<String>(
     context: context,
-    backgroundColor: Colors.white,
+    backgroundColor: C.card,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
     ),
@@ -343,14 +351,17 @@ Future<String?> showPartActions(BuildContext context, String name) {
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(name,
-                    style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w800, color: kText)),
+                    style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: C.text)),
               ),
             ),
             ListTile(
               leading: const Icon(Icons.build_rounded, color: kPrimary),
-              title: const Text('Зафиксировать замену',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
+              title: Text('Зафиксировать замену',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600, color: C.text)),
               onTap: () => Navigator.pop(ctx, 'replace'),
             ),
             ListTile(
@@ -365,7 +376,6 @@ Future<String?> showPartActions(BuildContext context, String name) {
     ),
   );
 }
-
 /// Подтверждение и снятие узла с машины (POST /parts/remove).
 /// Узел пропадает из «Узлов», история замен остаётся в «Истории».
 /// Возвращает true, если снято. Списки обновятся сами через Api.docsChanged.
@@ -398,7 +408,7 @@ class _DeletePartDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: C.card,
       surfaceTintColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 28),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -419,26 +429,25 @@ class _DeletePartDialog extends StatelessWidget {
                   color: kRed, size: 24),
             ),
             const SizedBox(height: 16),
-            const Text('Удалить установку?',
+            Text('Удалить установку?',
                 style: TextStyle(
                     fontSize: 19,
                     fontWeight: FontWeight.w800,
-                    color: kText)),
+                    color: C.text)),
             const SizedBox(height: 8),
             Text.rich(
               TextSpan(
                 children: [
                   TextSpan(
                       text: name,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w700, color: kText)),
+                      style:  TextStyle(
+                          fontWeight: FontWeight.w700, color:  C.text)),
                   const TextSpan(
                       text:
                       ' пропадёт из списка узлов этой машины. История замен сохранится.'),
                 ],
               ),
-              style:
-              const TextStyle(fontSize: 14, height: 1.4, color: kMuted),
+              style: TextStyle(fontSize: 14, height: 1.4, color: C.muted),
             ),
             const SizedBox(height: 20),
             Row(
@@ -449,8 +458,8 @@ class _DeletePartDialog extends StatelessWidget {
                     child: TextButton(
                       onPressed: () => Navigator.pop(context, false),
                       style: TextButton.styleFrom(
-                        foregroundColor: kText,
-                        backgroundColor: kBg,
+                        foregroundColor: C.text,
+                        backgroundColor: C.card2,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14)),
                       ),

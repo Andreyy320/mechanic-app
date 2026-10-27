@@ -5,16 +5,16 @@ import 'package:flutter/services.dart';
 import 'package:mechanic_app/screens/vehicleDetail_screen.dart';
 import '../services/api.dart';
 import 'vehicle_form_sheet.dart';
-import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays, PlateBadge,unitOf;
-/// ───── Палитра экрана (светлая тема, меняйте цвета здесь) ─────
+import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays, PlateBadge, unitOf, C, AppTheme;
+
 class _P {
-  static const bg = Color(0xFFF6F7FA);
-  static const card = Color(0xFFFFFFFF);
-  static const card2 = Color(0xFFF1F3F7);
-  static const line = Color(0xFFE5E7EB);
-  static const text = Color(0xFF111827);
-  static const muted = Color(0xFF6B7280);
-  static const accent = Color(0xFFE08A00); // чуть темнее, чтобы читалось на белом
+  static Color get bg => C.bg;
+  static Color get card => C.card;
+  static Color get card2 => C.card2;
+  static Color get line => C.line;
+  static Color get text => C.text;
+  static Color get muted => C.muted;
+  static const accent = Color(0xFFE08A00);
   static const onAccent = Color(0xFFFFFFFF);
   static const green = Color(0xFF16A34A);
   static const red = Color(0xFFDC2626);
@@ -189,7 +189,6 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     final r = await Api.autoSyncMileage(force: true); // список обновится сам
     _syncBusy = false;
     if (!mounted) return;
-    String msg;
     if (r == null) {
       toast(context, 'Не удалось обновить пробег', error: true);
     } else if (r is Map &&
@@ -263,7 +262,9 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         scrolledUnderElevation: 0,
         centerTitle: false,
         toolbarHeight: 68,
-        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        systemOverlayStyle: AppTheme.dark.value
+            ? SystemUiOverlayStyle.light
+            : SystemUiOverlayStyle.dark,
         titleSpacing: 16,
         title: Row(
           children: [
@@ -275,12 +276,14 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: _P.accent.withOpacity(0.4)),
               ),
-              child: const Icon(Icons.directions_car_rounded,
+              child: Icon(
+Icons.directions_car_rounded,
                   color: _P.accent, size: 22),
             ),
             const SizedBox(width: 12),
             Text(Api.name ?? 'Машины',
-                style: const TextStyle(
+                style: TextStyle(
+
                     fontSize: 22,
                     height: 1.1,
                     fontWeight: FontWeight.w800,
@@ -294,12 +297,13 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               margin: const EdgeInsets.only(right: 16),
               width: 38,
               height: 38,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: _P.accent,
                 shape: BoxShape.circle,
               ),
               child:
-              const Icon(Icons.add_rounded, color: _P.onAccent, size: 24),
+              Icon(
+Icons.add_rounded, color: _P.onAccent, size: 24),
             ),
           ),
 
@@ -309,7 +313,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         future: _future,
         builder: (context, snap) {
           if (snap.connectionState != ConnectionState.done && !snap.hasData) {
-            return const Center(
+            return Center(
+
                 child: CircularProgressIndicator(color: _P.accent));
           }
           if (snap.hasError) return _error();
@@ -350,7 +355,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 child: Center(
                   child: Text(
                     all.isEmpty ? 'Машин пока нет' : 'Ничего не найдено',
-                    style: const TextStyle(color: _P.muted, fontSize: 15),
+                    style: TextStyle(
+color: _P.muted, fontSize: 15),
                   ),
                 ),
               )
@@ -416,7 +422,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                     const SizedBox(width: 5),
                     Text(label,
                         maxLines: 1,
-                        style: const TextStyle(
+                        style: TextStyle(
+
                             fontSize: 10,
                             letterSpacing: 0.6,
                             fontWeight: FontWeight.w800,
@@ -436,7 +443,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 fit: BoxFit.scaleDown,
                 child: Text(caption,
                     maxLines: 1,
-                    style: const TextStyle(fontSize: 11, color: _P.muted)),
+                    style: TextStyle(
+fontSize: 11, color: _P.muted)),
               ),
             ],
           ),
@@ -452,12 +460,15 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     );
     return TextField(
       onChanged: (v) => setState(() => _query = v),
-      style: const TextStyle(color: _P.text),
+      style: TextStyle(
+color: _P.text),
       cursorColor: _P.accent,
       decoration: InputDecoration(
         hintText: 'Поиск по номеру или модели',
-        hintStyle: const TextStyle(color: _P.muted),
-        prefixIcon: const Icon(Icons.search_rounded, color: _P.muted),
+        hintStyle: TextStyle(
+color: _P.muted),
+        prefixIcon: Icon(
+Icons.search_rounded, color: _P.muted),
         filled: true,
         fillColor: _P.card,
         contentPadding: const EdgeInsets.symmetric(vertical: 14),
@@ -468,14 +479,14 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
     );
   }
 
-  Widget _label(String t, {Color color = _P.muted}) => Padding(
+  Widget _label(String t, {Color? color}) => Padding(
     padding: const EdgeInsets.only(left: 4, bottom: 10),
     child: Text(t,
         style: TextStyle(
             fontSize: 11,
             letterSpacing: 1.1,
             fontWeight: FontWeight.w800,
-            color: color)),
+            color: color ?? _P.muted)),
   );
 
   // ───────── карточка машины ─────────
@@ -557,7 +568,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                         Text('${v['model']}',
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
+
                                 fontSize: 24,
                                 height: 1.1,
                                 fontWeight: FontWeight.w800,
@@ -565,7 +577,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                         if (color.isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(color,
-                              style: const TextStyle(
+                              style: TextStyle(
+
                                   fontSize: 13, color: _P.muted)),
                         ],
                         const SizedBox(height: 16),
@@ -663,7 +676,7 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
               // пробег, страховка, техосмотр: одна полоса с тонкими линиями
               Container(
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   border: Border.symmetric(
                     horizontal: BorderSide(color: _P.line),
                   ),
@@ -719,12 +732,15 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 height: 48,
                 child: FilledButton.icon(
                   onPressed: () => _updateMileage(v),
-                  icon: const Icon(Icons.sync_rounded, size: 18),
-                  label: const Text('ОБНОВИТЬ ПРОБЕГ'),
+                  icon: Icon(
+Icons.sync_rounded, size: 18),
+                  label: Text(
+'ОБНОВИТЬ ПРОБЕГ'),
                   style: FilledButton.styleFrom(
                     backgroundColor: _P.accent,
                     foregroundColor: _P.onAccent,
-                    textStyle: const TextStyle(
+                    textStyle: TextStyle(
+
                         fontSize: 12.5,
                         letterSpacing: 0.4,
                         fontWeight: FontWeight.w800),
@@ -758,7 +774,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                     alignment: Alignment.centerLeft,
                     child: Text(label,
                         maxLines: 1,
-                        style: const TextStyle(
+                        style: TextStyle(
+
                             fontSize: 9.5,
                             letterSpacing: 0.5,
                             fontWeight: FontWeight.w800,
@@ -785,7 +802,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 alignment: Alignment.centerLeft,
                 child: Text(sub,
                     maxLines: 1,
-                    style: const TextStyle(fontSize: 10.5, color: _P.muted)),
+                    style: TextStyle(
+fontSize: 10.5, color: _P.muted)),
               ),
             ],
           ],
@@ -834,14 +852,16 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(label,
-                        style: const TextStyle(
+                        style: TextStyle(
+
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
                             color: _P.text)),
                     const SizedBox(height: 2),
                     Text(
                       to == null ? 'Нет данных' : 'до ${fmtDate(to)}',
-                      style: const TextStyle(fontSize: 12.5, color: _P.muted),
+                      style: TextStyle(
+fontSize: 12.5, color: _P.muted),
                     ),
                   ],
                 ),
@@ -927,14 +947,16 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Износ запчастей',
+                Text(
+'Износ запчастей',
                     style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: _P.text)),
                 const SizedBox(height: 2),
                 Text(sub,
-                    style: const TextStyle(fontSize: 12.5, color: _P.muted)),
+                    style: TextStyle(
+fontSize: 12.5, color: _P.muted)),
               ],
             ),
           ),
@@ -957,9 +979,11 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 44, color: _P.muted),
+            Icon(
+Icons.cloud_off_rounded, size: 44, color: _P.muted),
             const SizedBox(height: 14),
-            const Text('Не удалось загрузить список',
+            Text(
+'Не удалось загрузить список',
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -973,7 +997,8 @@ class _VehiclesScreenState extends State<VehiclesScreen> {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Повторить'),
+              child: Text(
+'Повторить'),
             ),
           ],
         ),

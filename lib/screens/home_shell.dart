@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mechanic_app/screens/parts_screen.dart';
 import 'vehicles_screen.dart';
-import 'service_screen.dart';
 import 'profile_screen.dart';
 import 'ui.dart';
 import 'dart:async';
@@ -41,6 +40,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
     final i = Push.openTab.value;
     if (i == null) return;
     Push.openTab.value = null;
+    _keys[i].currentState?.popUntil((r) => r.isFirst);
     if (mounted) setState(() => _i = i);
   }
 
@@ -66,7 +66,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   /// У каждой вкладки свой Navigator: экраны, открытые внутри вкладки
   /// (например, карточка машины), показываются НАД контентом,
   /// а нижняя панель остаётся на месте.
-  final _keys = List.generate(4, (_) => GlobalKey<NavigatorState>());
+  final _keys = List.generate(3, (_) => GlobalKey<NavigatorState>());
 
   Widget _tab(int i, Widget root) => Navigator(
     key: _keys[i],
@@ -123,8 +123,7 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
                 children: [
                   _tab(0, const VehiclesScreen()),
                   _tab(1, const PartsScreen()),
-                  _tab(2, const ServiceScreen()),
-                  _tab(3, const ProfileScreen()),
+                  _tab(2, const ProfileScreen()),
                 ],
               ),
             ),
@@ -138,8 +137,6 @@ class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
           _NavItem(Icons.directions_car_outlined,
               Icons.directions_car_rounded, 'Машины'),
           _NavItem(Icons.build_outlined, Icons.build_rounded, 'Узлы'),
-          _NavItem(Icons.description_outlined, Icons.description_rounded,
-              'ТО и доки'),
           _NavItem(Icons.person_outline_rounded, Icons.person_rounded,
               'Профиль'),
         ],
@@ -166,7 +163,7 @@ class _NavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: kBg,
+      color: C.bg,
       child: SafeArea(
         top: false,
         child: Padding(
@@ -175,9 +172,9 @@ class _NavBar extends StatelessWidget {
             height: 66,
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: C.card,
               borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: kLine),
+              border: Border.all(color: C.line),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.08),
@@ -218,7 +215,7 @@ class _NavBar extends StatelessWidget {
               scale: sel ? 1.12 : 1.0,
               duration: const Duration(milliseconds: 220),
               child: Icon(sel ? it.activeIcon : it.icon,
-                  size: 24, color: sel ? kPrimary : kMuted),
+                  size: 24, color: sel ? kPrimary : C.muted),
             ),
             const SizedBox(height: 3),
             Text(it.label,
@@ -226,7 +223,7 @@ class _NavBar extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 11,
                     fontWeight: sel ? FontWeight.w800 : FontWeight.w600,
-                    color: sel ? kText : kMuted)),
+                    color: sel ? C.text : C.muted)),
           ],
         ),
       ),

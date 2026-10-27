@@ -9,7 +9,7 @@ class Push {
   static bool _listening = false; // слушатели вешаются один раз
   static String? _token;
 
-  /// Какую вкладку открыть после тапа по уведомлению (1 — «Узлы», 2 — «ТО и доки»).
+  /// Какую вкладку открыть после тапа по уведомлению (0 — «Машины», 1 — «Узлы»).
   /// HomeShell слушает это значение и сбрасывает его в null.
   static final openTab = ValueNotifier<int?>(null);
 
@@ -103,7 +103,9 @@ class Push {
   static void _open(RemoteMessage m) => _openScreen(m.data['screen']);
 
   static void _openScreen(String? screen) {
-    final i = screen == 'parts' ? 1 : (screen == 'service' ? 2 : null);
+    final i = screen == 'parts'
+        ? 1
+        : (screen == 'service' || screen == 'vehicles' ? 0 : null);
     if (i != null) openTab.value = i;
   }
 }

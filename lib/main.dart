@@ -28,6 +28,7 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(_bgHandler);
   await Api.loadSaved();
+  await AppTheme.load();
   Api.onUnauthorized = () {
     navKey.currentState?.pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -42,52 +43,52 @@ class MechanicApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: navKey,
-      title: 'Автопарк',
-      theme: buildTheme(),
-      // Интерфейс всегда строится на эталонной ширине kDesignWidth и затем
-      // пропорционально растягивается на экран. Поэтому «Размер экрана»,
-      // «Размер шрифта» и ширина телефона больше не меняют вид приложения.
-      builder: (context, child) {
-        final mq = MediaQuery.of(context);
-        final s = mq.size.width / kDesignWidth; // во сколько раз растянуть
-        final h = mq.size.height / s; // высота в эталонных единицах
-        return MediaQuery(
-          data: mq.copyWith(
-            size: Size(kDesignWidth, h),
-            padding: mq.padding / s,
-            viewPadding: mq.viewPadding / s,
-            viewInsets: mq.viewInsets / s,
-            systemGestureInsets: mq.systemGestureInsets / s,
-            textScaler: TextScaler.noScaling,
-            boldText: false,
-          ),
-          child: ClipRect(
-            child: OverflowBox(
-              alignment: Alignment.topLeft,
-              minWidth: kDesignWidth,
-              maxWidth: kDesignWidth,
-              minHeight: h,
-              maxHeight: h,
-              child: Transform.scale(
-                scale: s,
+    return ValueListenableBuilder<bool>(
+      valueListenable: AppTheme.dark,
+      builder: (context, dark, _) => MaterialApp(
+        key: ValueKey(dark), // полная перерисовка при смене темы
+        navigatorKey: navKey,
+        title: 'Автопарк',
+        theme: buildTheme(),
+        builder: (context, child) {
+          final mq = MediaQuery.of(context);
+          final s = mq.size.width / kDesignWidth;
+          final h = mq.size.height / s;
+          return MediaQuery(
+            data: mq.copyWith(
+              size: Size(kDesignWidth, h),
+              padding: mq.padding / s,
+              viewPadding: mq.viewPadding / s,
+              viewInsets: mq.viewInsets / s,
+              systemGestureInsets: mq.systemGestureInsets / s,
+              textScaler: TextScaler.noScaling,
+              boldText: false,
+            ),
+            child: ClipRect(
+              child: OverflowBox(
                 alignment: Alignment.topLeft,
-                child: child!,
+                minWidth: kDesignWidth,
+                maxWidth: kDesignWidth,
+                minHeight: h,
+                maxHeight: h,
+                child: Transform.scale(
+                  scale: s,
+                  alignment: Alignment.topLeft,
+                  child: child!,
+                ),
               ),
             ),
-          ),
-        );
-      },
-      // русский язык: календарь, кнопки «Отмена / OK», названия месяцев
-      locale: const Locale('ru'),
-      supportedLocales: const [Locale('ru'), Locale('en')],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      home: Api.token == null ? const LoginScreen() : const HomeShell(),
+          );
+        },
+        locale: const Locale('ru'),
+        supportedLocales: const [Locale('ru'), Locale('en')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        home: Api.token == null ? const LoginScreen() : const HomeShell(),
+      ),
     );
   }
 }

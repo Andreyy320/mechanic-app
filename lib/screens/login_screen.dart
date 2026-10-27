@@ -58,19 +58,19 @@ class _LoginScreenState extends State<LoginScreen> {
   InputDecoration _decoration(String hint, IconData icon, {Widget? suffix}) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
-      prefixIcon: Icon(icon, color: kMuted, size: 22),
+      hintStyle: TextStyle(color: C.muted),
+      prefixIcon: Icon(icon, color: C.muted, size: 22),
       suffixIcon: suffix,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: C.card,
       contentPadding: const EdgeInsets.symmetric(vertical: 18),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: kLine),
+        borderSide: BorderSide(color: C.line),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: kLine),
+        borderSide: BorderSide(color: C.line),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -78,12 +78,15 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBg,
-      body: SafeArea(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+        value: AppTheme.dark.value
+            ? SystemUiOverlayStyle.light
+            : SystemUiOverlayStyle.dark,
+        child: Scaffold(
+          backgroundColor: C.bg,
+          body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
@@ -110,14 +113,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 22),
-                    const Text(
+                    Text(
                       'Вход',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 30,
                         height: 1.1,
                         fontWeight: FontWeight.w800,
-                        color: kText,
+                        color: C.text,
                       ),
                     ),
                     const SizedBox(height: 32),
@@ -128,10 +131,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       textInputAction: TextInputAction.next,
                       onSubmitted: (_) => _passFocus.requestFocus(),
                       cursorColor: kPrimary,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: kText),
+                          color: C.text),
                       decoration:
                       _decoration('Логин', Icons.person_outline_rounded),
                     ),
@@ -144,10 +147,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       textInputAction: TextInputAction.done,
                       onSubmitted: (_) => _submit(),
                       cursorColor: kPrimary,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: kText),
+                          color: C.text),
                       decoration: _decoration(
                         'Пароль',
                         Icons.lock_outline_rounded,
@@ -156,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             _obscure
                                 ? Icons.visibility_outlined
                                 : Icons.visibility_off_outlined,
-                            color: kMuted,
+                              color: C.muted,
                           ),
                           onPressed: () => setState(() => _obscure = !_obscure),
                         ),
@@ -209,7 +212,8 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-      ),
+          ),
+        ),
     );
   }
 }

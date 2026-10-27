@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api.dart';
-import 'ui.dart' show fmtKm, fmtDate, PlateBadge,unitOf;
+import 'ui.dart' show fmtKm, fmtDate, PlateBadge, unitOf, C, AppTheme;
 
 class _P {
-  static const bg = Color(0xFFF6F7FA);
-  static const card = Color(0xFFFFFFFF);
-  static const card2 = Color(0xFFF1F3F7);
-  static const line = Color(0xFFE5E7EB);
-  static const text = Color(0xFF111827);
-  static const muted = Color(0xFF6B7280);
+  static Color get bg => C.bg;
+  static Color get card => C.card;
+  static Color get card2 => C.card2;
+  static Color get line => C.line;
+  static Color get text => C.text;
+  static Color get muted => C.muted;
   static const accent = Color(0xFFE08A00);
   static const green = Color(0xFF16A34A);
-  static const blue = Color(0xFF475569);
+  static Color get blue => AppTheme.dark.value
+      ? const Color(0xFF94A3B8)
+      : const Color(0xFF475569);
 }
 
 int _n(dynamic v) => v is num ? v.round() : (num.tryParse('$v')?.round() ?? 0);
@@ -65,8 +67,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         foregroundColor: _P.text,
-        systemOverlayStyle: SystemUiOverlayStyle.dark,
-        title: const Text('История авто',
+        systemOverlayStyle: AppTheme.dark.value
+            ? SystemUiOverlayStyle.light
+            : SystemUiOverlayStyle.dark,
+        title: Text('История авто',
             style: TextStyle(
                 fontSize: 22, fontWeight: FontWeight.w800, color: _P.text)),
       ),
@@ -76,7 +80,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Widget _body() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: _P.accent));
+      return Center(child: CircularProgressIndicator(color: _P.accent));
     }
     if (_err != null) {
       return Center(
@@ -96,11 +100,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
           child: TextField(
             onChanged: (v) => setState(() => _query = v),
             cursorColor: _P.accent,
-            style: const TextStyle(color: _P.text),
+            style: TextStyle(color: _P.text),
             decoration: InputDecoration(
               hintText: 'Поиск по номеру или модели',
-              hintStyle: const TextStyle(color: _P.muted),
-              prefixIcon: const Icon(Icons.search_rounded, color: _P.muted),
+              hintStyle: TextStyle(color: _P.muted),
+              prefixIcon: Icon(Icons.search_rounded, color: _P.muted),
               filled: true,
               fillColor: _P.card,
               contentPadding: const EdgeInsets.symmetric(vertical: 12),
@@ -125,7 +129,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         _cars.isEmpty
                             ? 'Машин пока нет'
                             : 'Ничего не найдено',
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: _P.muted, fontSize: 15)),
                   ),
                 ),
@@ -150,7 +154,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: _P.line),
+        side: BorderSide(color: _P.line),
       ),
       child: InkWell(
         onTap: () => Navigator.of(context).push(MaterialPageRoute(
@@ -166,7 +170,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   color: _P.accent.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.directions_car_rounded,
+                child: Icon(Icons.directions_car_rounded,
                     color: _P.accent, size: 23),
               ),
               const SizedBox(width: 12),
@@ -177,21 +181,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     Text('${v['model']}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 15.5,
                             fontWeight: FontWeight.w800,
                             color: _P.text)),
                     const SizedBox(height: 2),
                     Text('${fmtKm(v['mileage'])} ${unitOf(v)}',
                         style:
-                        const TextStyle(fontSize: 12.5, color: _P.muted)),
+                        TextStyle(fontSize: 12.5, color: _P.muted)),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
               _plate('${v['plate']}'),
               const SizedBox(width: 4),
-              const Icon(Icons.chevron_right_rounded, color: _P.muted),
+              Icon(Icons.chevron_right_rounded, color: _P.muted),
             ],
           ),
         ),
@@ -348,12 +352,14 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         foregroundColor: _P.text,
-        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        systemOverlayStyle: AppTheme.dark.value
+            ? SystemUiOverlayStyle.light
+            : SystemUiOverlayStyle.dark,
         titleSpacing: 0,
         title: Text('${v['model']}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 20, fontWeight: FontWeight.w800, color: _P.text)),
         actions: [
           Center(
@@ -369,7 +375,7 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
 
   Widget _body() {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: _P.accent));
+      return Center(child: CircularProgressIndicator(color: _P.accent));
     }
     if (_err != null) {
       return Center(
@@ -418,9 +424,9 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
             child: rows.isEmpty
                 ? ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              children: const [
+              children: [
                 Padding(
-                  padding: EdgeInsets.only(top: 60),
+                  padding: const EdgeInsets.only(top: 60),
                   child: Center(
                       child: Text('Записей пока нет',
                           style: TextStyle(
@@ -438,7 +444,7 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
                   return Padding(
                     padding: const EdgeInsets.fromLTRB(4, 14, 0, 8),
                     child: Text(r.toUpperCase(),
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 11,
                             letterSpacing: 1.1,
                             fontWeight: FontWeight.w800,
@@ -483,7 +489,7 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
                   fit: BoxFit.scaleDown,
                   child: Text(label,
                       maxLines: 1,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
                           color: _P.muted)),
@@ -506,7 +512,7 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: _P.line),
+          side: BorderSide(color: _P.line),
         ),
         child: InkWell(
           onTap: tappable ? () => _showPart(e) : null,
@@ -530,13 +536,13 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(e.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
                               color: _P.text)),
                       const SizedBox(height: 3),
                       Text(e.sub,
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 12.5, color: _P.muted)),
                     ],
                   ),
@@ -552,7 +558,7 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
                             color: c)),
                     if (tappable) ...[
                       const SizedBox(height: 4),
-                      const Text('История ›',
+                      Text('История ›',
                           style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
@@ -598,7 +604,7 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(e.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                         color: _P.text)),
@@ -606,7 +612,7 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
                 Text(
                     'Замен: ${list.length}'
                         '${norm > 0 ? ' · норматив ${fmtKm(norm)} $u' : ''}',
-                    style: const TextStyle(fontSize: 13, color: _P.muted)),
+                    style: TextStyle(fontSize: 13, color: _P.muted)),
                 const SizedBox(height: 14),
                 Flexible(
                   child: Container(
@@ -620,7 +626,7 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
                       shrinkWrap: true,
                       padding: EdgeInsets.zero,
                       itemCount: list.length,
-                      separatorBuilder: (_, __) => const Divider(
+                      separatorBuilder: (_, __) => Divider(
                           height: 1, thickness: 1, color: _P.line),
                       itemBuilder: (_, i) {
                         final p = list[i];
@@ -642,13 +648,13 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(fmtDate(p['installed_at']),
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                             fontSize: 14.5,
                                             fontWeight: FontWeight.w800,
                                             color: _P.text)),
                                     const SizedBox(height: 2),
                                     Text('на ${fmtKm(at)} $u',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                             fontSize: 12.5, color: _P.muted)),
                                   ],
                                 ),
@@ -681,7 +687,7 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
                                               color: _P.text)),
                                     )
                                   else
-                                    const Text('ПРОСЛУЖИЛА',
+                                    Text('ПРОСЛУЖИЛА',
                                         style: TextStyle(
                                             fontSize: 9.5,
                                             letterSpacing: 0.6,

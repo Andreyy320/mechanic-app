@@ -215,18 +215,17 @@ class _UpdateDialogState extends State<_UpdateDialog> {
             ),
           ),
           const SizedBox(height: 10),
-          const Text('Скачиваем обновление…',
-              style: TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w600, color: kMuted)),
+          Text('Скачиваем обновление…',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: C.muted)),
         ],
       );
     }
     if (_installing) {
-      return const Padding(
+      return  Padding(
         padding: EdgeInsets.symmetric(vertical: 14),
         child: Text('Открываю установщик…',
             style: TextStyle(
-                fontSize: 14, fontWeight: FontWeight.w600, color: kMuted)),
+                fontSize: 14, fontWeight: FontWeight.w600, color: C.muted)),
       );
     }
     return SizedBox(
@@ -261,7 +260,7 @@ class _UpdateDialogState extends State<_UpdateDialog> {
           child: Transform.scale(scale: v, child: child),
         ),
         child: Dialog(
-          backgroundColor: Colors.white,
+          backgroundColor: C.card,
           surfaceTintColor: Colors.transparent,
           elevation: 12,
           insetPadding: const EdgeInsets.symmetric(horizontal: 28),
@@ -275,21 +274,21 @@ class _UpdateDialogState extends State<_UpdateDialog> {
               children: [
                 Center(child: _icon()),
                 const SizedBox(height: 20),
-                const Text('Доступно обновление',
+                 Text('Доступно обновление',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 23,
                         height: 1.15,
                         fontWeight: FontWeight.w800,
-                        color: kText)),
+                        color: C.text)),
                 const SizedBox(height: 8),
-                const Text('Установите новую версию,\nчтобы продолжить работу',
+                 Text('Установите новую версию,\nчтобы продолжить работу',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 14.5,
                         height: 1.4,
                         fontWeight: FontWeight.w500,
-                        color: kMuted)),
+                        color: C.muted)),
                 if (_error != null) ...[
                   const SizedBox(height: 14),
                   Text(_error!,

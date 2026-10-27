@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api.dart';
-import 'ui.dart' show fmtKm;
+import 'ui.dart' show fmtKm, C;
 
 class _P {
-  static const card = Color(0xFFFFFFFF);
-  static const card2 = Color(0xFFF1F3F7);
-  static const text = Color(0xFF111827);
-  static const muted = Color(0xFF6B7280);
+  static Color get bg => C.bg;
+  static Color get card => C.card;
+  static Color get card2 => C.card2;
+  static Color get line => C.line;
+  static Color get text => C.text;
+  static Color get muted => C.muted;
   static const accent = Color(0xFFE08A00);
   static const red = Color(0xFFDC2626);
 }
@@ -140,12 +142,12 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
                     color: _P.accent.withOpacity(0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.trending_down_rounded,
+                  child: Icon(Icons.trending_down_rounded,
                       color: _P.accent, size: 28),
                 ),
               ),
               const SizedBox(height: 16),
-              const Text('Пробег уменьшится',
+              Text('Пробег уменьшится',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       fontSize: 20,
@@ -163,17 +165,17 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text('${fmtKm(cur)} $_u',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             color: _P.muted)),
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(horizontal: 10),
                       child: Icon(Icons.arrow_forward_rounded,
                           size: 18, color: _P.muted),
                     ),
                     Text('${fmtKm(now)} $_u',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
                             color: _P.text)),
@@ -181,7 +183,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                       'Запчасти, установленные при большем пробеге, станут красными: '
                       'их нужно будет ввести заново.',
                   textAlign: TextAlign.center,
@@ -200,7 +202,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14)),
                         ),
-                        child: const Text('Отмена',
+                        child: Text('Отмена',
                             style: TextStyle(
                                 fontSize: 14, fontWeight: FontWeight.w700)),
                       ),
@@ -218,7 +220,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14)),
                         ),
-                        child: const Text('Сохранить',
+                        child: Text('Сохранить',
                             style: TextStyle(
                                 fontSize: 14, fontWeight: FontWeight.w700)),
                       ),
@@ -302,7 +304,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
   Widget _label(String t) => Padding(
     padding: const EdgeInsets.only(bottom: 6, top: 14),
     child: Text(t,
-        style: const TextStyle(
+        style: TextStyle(
             fontSize: 13, fontWeight: FontWeight.w700, color: _P.muted)),
   );
 
@@ -319,11 +321,13 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
       minLines: lines,
       inputFormatters: formatters,
       textCapitalization: cap,
-      style: const TextStyle(
+      style: TextStyle(
           fontSize: 15, fontWeight: FontWeight.w600, color: _P.text),
       cursorColor: _P.accent,
       decoration: InputDecoration(
         suffixText: suffix,
+        suffixStyle: TextStyle(
+            color: _P.muted, fontSize: 15, fontWeight: FontWeight.w600),
         filled: true,
         fillColor: _P.card2,
         contentPadding:
@@ -346,7 +350,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _P.text, width: 2),
+            border: Border.all(color: const Color(0xFF111827), width: 2),
           ),
           child: TextField(
             key: ValueKey(_free), // при смене режима поле строится заново
@@ -360,18 +364,18 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
             ]
                 : [_PlateFormatter()],
             cursorColor: _P.accent,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 28,
                 letterSpacing: 3,
                 fontWeight: FontWeight.w800,
-                color: _P.text),
+                color: const Color(0xFF111827)),
             decoration: InputDecoration(
               border: InputBorder.none,
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12),
               hintText: _free ? 'НОМЕР' : 'Т 774 МЕ',
-              hintStyle: const TextStyle(
+              hintStyle: TextStyle(
                   fontSize: 28,
                   letterSpacing: 3,
                   fontWeight: FontWeight.w700,
@@ -389,7 +393,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
               minimumSize: Size.zero,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               textStyle:
-              const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+              TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
             ),
             child: Text(_free ? 'Обычный номер' : 'Нестандартный номер'),
           ),
@@ -409,7 +413,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(_editing ? 'Редактировать: Машина' : 'Добавить: Машина',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20, fontWeight: FontWeight.w800, color: _P.text)),
             _label('Гос. номер'),
             _plateField(),
@@ -430,13 +434,13 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
                 backgroundColor: MaterialStateProperty.resolveWith((states) =>
                 states.contains(MaterialState.selected)
                     ? _P.accent
-                    : Colors.white),
+                    : _P.card2),
                 foregroundColor: MaterialStateProperty.resolveWith((states) =>
                 states.contains(MaterialState.selected)
                     ? Colors.white
                     : _P.text),
-                side: const MaterialStatePropertyAll(
-                    BorderSide(color: Color(0xFFE5E7EB))),
+                side: MaterialStatePropertyAll(
+                    BorderSide(color: _P.line)),
                 overlayColor: const MaterialStatePropertyAll(Color(0x11000000)),
                 textStyle: const MaterialStatePropertyAll(
                     TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
@@ -452,7 +456,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
               Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: Text(_error!,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: _P.red, fontWeight: FontWeight.w500)),
               ),
             const SizedBox(height: 20),
@@ -475,7 +479,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
                           height: 22,
                           child: CircularProgressIndicator(
                               strokeWidth: 2.5, color: Colors.white))
-                          : const Text('СОХРАНИТЬ',
+                          : Text('СОХРАНИТЬ',
                           style: TextStyle(
                               fontSize: 14,
                               letterSpacing: 0.4,
@@ -495,7 +499,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14)),
                     ),
-                    child: const Text('Отмена',
+                    child: Text('Отмена',
                         style: TextStyle(fontWeight: FontWeight.w700)),
                   ),
                 ),
