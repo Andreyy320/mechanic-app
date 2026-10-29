@@ -5,7 +5,7 @@ import 'package:mechanic_app/screens/vehicle_form_sheet.dart';
 import 'date_input.dart';
 import 'doc_renew_sheet.dart';
 import '../services/api.dart';
-import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays, PlateBadge, unitOf, showPartActions, deletePartFlow, C, AppTheme;
+import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays, PlateBadge, unitOf, showPartActions, deletePartFlow, C, AppTheme,kResetTol;
 
 class _P {
   static Color get bg => C.bg;
@@ -34,7 +34,7 @@ class _Node {
   _Node(this.typeId, this.title, this.icon, this.normKm, this.warn1,
       this.warn2, this.lastKm, this.installedAt);
 
-  bool reset(int mileage) => mileage < lastKm; // пробег сбросился
+  bool reset(int mileage) => lastKm - mileage > kResetTol; // допуск 1000, как на сайте
 
   int left(int mileage) => normKm - max(mileage - lastKm, 0);
 

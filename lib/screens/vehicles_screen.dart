@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:mechanic_app/screens/vehicleDetail_screen.dart';
 import '../services/api.dart';
 import 'vehicle_form_sheet.dart';
-import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays, PlateBadge, unitOf, C, AppTheme;
+import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays, PlateBadge, unitOf, C, AppTheme,kResetTol;
 
 class _P {
   static Color get bg => C.bg;
@@ -61,8 +61,7 @@ Map<int, _Wear> _calcWear(List<dynamic> parts, List<dynamic> cars) {
     final w1 = max(_n(p['warn1_km']), w2);
     final used = max((mileage[vid] ?? 0) - _n(p['mileage_at']), 0);
     final left = norm - used;
-    final reset = (mileage[vid] ?? 0) < _n(p['mileage_at']);
-
+    final reset = _n(p['mileage_at']) - (mileage[vid] ?? 0) > kResetTol;
     int lvl;
     if (reset) {
       lvl = 2;

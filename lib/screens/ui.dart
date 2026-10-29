@@ -36,6 +36,7 @@ const kGreen = Color(0xFF16A34A);
 const kAmber = Color(0xFFD97706);
 const kRed = Color(0xFFDC2626);
 
+const kResetTol = 1000;
 /// Единая тема приложения. Подключается в main.dart: theme: buildTheme()
 ThemeData buildTheme() {
   final d = AppTheme.dark.value;

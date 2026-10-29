@@ -2,7 +2,7 @@ import 'dart:math' show max, min;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api.dart';
-import 'ui.dart' show fmtKm, fmtDate, PlateBadge, unitOf, showPartActions, deletePartFlow, C, AppTheme;
+import 'ui.dart' show fmtKm, fmtDate, PlateBadge, unitOf, showPartActions, deletePartFlow, C, AppTheme, kResetTol;
 import 'vehicleDetail_screen.dart' show InstallSheet;
 
 /// Вкладка «Узлы» — рабочий список «что менять».
@@ -59,7 +59,7 @@ class _Item {
       this.warn2, this.lastKm, this.installedAt);
 
   int get mileage => _n(vehicle['mileage']);
-  bool get reset => mileage < lastKm; // пробег машины стал меньше, чем при установке
+  bool get reset => lastKm - mileage > kResetTol; // как на сайте: допуск 1000
   int get left => norm - max(mileage - lastKm, 0);
   double get value => reset ? 0.0 : (left / norm).clamp(0.0, 1.0).toDouble();
 

@@ -579,7 +579,6 @@ class _VehicleHistoryScreenState extends State<VehicleHistoryScreen> {
     final list = _parts.where((p) => _n(p['part_type_id']) == e.typeId).toList()
       ..sort((a, b) {
         var c = '${b['installed_at']}'.compareTo('${a['installed_at']}');
-        if (c == 0) c = _n(b['mileage_at']).compareTo(_n(a['mileage_at']));
         return c != 0 ? c : _n(b['id']).compareTo(_n(a['id']));
       });
     if (list.isEmpty) return;
