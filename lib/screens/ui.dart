@@ -377,6 +377,16 @@ Future<String?> showPartActions(BuildContext context, String name) {
     ),
   );
 }
+
+
+/// "18" -> "R18"; всё остальное ("235/45 R18") показываем как есть
+String fmtWheel(dynamic s) {
+  final t = '${s ?? ''}'.trim();
+  if (t.isEmpty) return '';
+  return RegExp(r'^\d{2}([.,]\d)?$').hasMatch(t) ? 'R$t' : t;
+}
+
+
 /// Подтверждение и снятие узла с машины (POST /parts/remove).
 /// Узел пропадает из «Узлов», история замен остаётся в «Истории».
 /// Возвращает true, если снято. Списки обновятся сами через Api.docsChanged.

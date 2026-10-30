@@ -85,7 +85,9 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
   late final _color = TextEditingController(text: _s('color'));
   late final _km = TextEditingController(
       text: _editing ? '${(widget.vehicle['mileage'] as num?)?.round() ?? ''}' : '');
-  late final _desc = TextEditingController(text: _s('description'));
+  late final _owner = TextEditingController(text: _s('car_owner'));
+  late final _year = TextEditingController(text: _s('year'));
+  late final _wheel = TextEditingController(text: _s('wheel_radius'));
   // нестандартный номер: свободный ввод без шаблона
   late bool _free = _editing && !_isStandard(_s('plate').trim());
   bool _busy = false;
@@ -104,7 +106,9 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
     _model.dispose();
     _color.dispose();
     _km.dispose();
-    _desc.dispose();
+    _owner.dispose();
+    _year.dispose();
+    _wheel.dispose();
     super.dispose();
   }
 
@@ -257,6 +261,13 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
       setState(() => _error = 'Пробег должен быть числом');
       return;
     }
+    final yearText = _year.text.trim();
+    final year = yearText.isEmpty ? null : int.tryParse(yearText);
+    if (yearText.isNotEmpty &&
+        (year == null || year < 1950 || year > DateTime.now().year + 1)) {
+      setState(() => _error = 'Год выпуска указан неверно');
+      return;
+    }
 
     // как на сайте: пробег меньше текущего — только после подтверждения
     var force = false;
@@ -278,7 +289,9 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
       'plate': plate,
       'model': model,
       'color': _color.text.trim(),
-      'description': _desc.text.trim(),
+      'car_owner': _owner.text.trim(),
+      'year': year,
+      'wheel_radius': _wheel.text.trim(),
       'mileage_unit': _unit,
       if (km != null) 'mileage': km,
       if (force) 'force': true,
@@ -312,6 +325,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
       {TextInputType? type,
         int lines = 1,
         String? suffix,
+        String? prefix,
         List<TextInputFormatter>? formatters,
         TextCapitalization cap = TextCapitalization.none}) {
     return TextField(
@@ -325,6 +339,9 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
           fontSize: 15, fontWeight: FontWeight.w600, color: _P.text),
       cursorColor: _P.accent,
       decoration: InputDecoration(
+        prefixText: prefix,
+        prefixStyle: TextStyle(
+            color: _P.muted, fontSize: 15, fontWeight: FontWeight.w600),
         suffixText: suffix,
         suffixStyle: TextStyle(
             color: _P.muted, fontSize: 15, fontWeight: FontWeight.w600),
@@ -450,8 +467,18 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
             ),
           _label('Пробег, $_u'),
           _input(_km, type: TextInputType.number, suffix: _u, formatters: [FilteringTextInputFormatter.digitsOnly]),
-            _label('Описание'),
-            _input(_desc, lines: 3, cap: TextCapitalization.sentences),
+              _label('Год выпуска'),
+              _input(_year, type: TextInputType.number, formatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(4),
+              ]),
+              _label('Радиус колёс'),
+              _input(_wheel, type: TextInputType.number, prefix: 'R ', formatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(2),
+              ]),
+              _label('Владелец авто'),
+              _input(_owner, cap: TextCapitalization.words),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12),

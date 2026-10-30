@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:mechanic_app/screens/vehicleDetail_screen.dart';
 import '../services/api.dart';
 import 'vehicle_form_sheet.dart';
-import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays, PlateBadge, unitOf, C, AppTheme,kResetTol;
+import 'ui.dart' show daysOf, fmtKm, fmtDate, fmtWheel, toast, kSoonDays, kUrgentDays, PlateBadge, unitOf, C, AppTheme,kResetTol;
 
 class _P {
   static Color get bg => C.bg;
@@ -501,6 +501,13 @@ Icons.search_rounded, color: _P.muted),
     final ac = urgent ? _P.red : _P.accent;
     final mark = attention ? ac : _P.green;
     final color = '${v['color'] ?? ''}'.trim();
+    final year = '${v['year'] ?? ''}'.trim();
+    final wheel = fmtWheel(v['wheel_radius']);
+    final tags = <Widget>[
+      if (color.isNotEmpty) _infoLine('Цвет', color),
+      if (year.isNotEmpty) _infoLine('Год выпуска', year),
+      if (wheel.isNotEmpty) _infoLine('Радиус колёс', wheel),
+    ];
     final hasWear = w != null && w.total > 0;
     // кольцо и подпись под ним — только по узлам (как в карточке машины)
     final ringC = !hasWear
@@ -573,13 +580,12 @@ Icons.search_rounded, color: _P.muted),
                                 height: 1.1,
                                 fontWeight: FontWeight.w800,
                                 color: _P.text)),
-                        if (color.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(color,
-                              style: TextStyle(
-
-                                  fontSize: 13, color: _P.muted)),
-                        ],
+                        if (tags.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: tags,
+                          ),                        ],
                         const SizedBox(height: 16),
                         PlateBadge('${v['plate']}', fs: 24),
                       ],
@@ -754,7 +760,26 @@ Icons.sync_rounded, size: 18),
       ),
     );
   }
-
+  Widget _infoLine(String label, String value) => Padding(
+    padding: const EdgeInsets.only(bottom: 2),
+    child: Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+              text: '$label: ',
+              style: TextStyle(fontSize: 13, color: _P.muted)),
+          TextSpan(
+              text: value,
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: _P.text)),
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    ),
+  );
   /// Маленький блок: иконка + подпись, значение, мелкая строка под ним
   Widget _miniStat(
       IconData icon, String label, String value, Color c, String? sub) {

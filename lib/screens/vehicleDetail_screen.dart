@@ -5,7 +5,7 @@ import 'package:mechanic_app/screens/vehicle_form_sheet.dart';
 import 'date_input.dart';
 import 'doc_renew_sheet.dart';
 import '../services/api.dart';
-import 'ui.dart' show daysOf, fmtKm, fmtDate, toast, kSoonDays, kUrgentDays, PlateBadge, unitOf, showPartActions, deletePartFlow, C, AppTheme,kResetTol;
+import 'ui.dart' show daysOf, fmtKm, fmtDate,fmtWheel, toast, kSoonDays, kUrgentDays, PlateBadge, unitOf, showPartActions, deletePartFlow, C, AppTheme,kResetTol;
 
 class _P {
   static Color get bg => C.bg;
@@ -457,6 +457,7 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
               children: [
                 _summary(m),
                 const SizedBox(height: 12),
+                ..._carInfo(),
                 _docs(v),
                 const SizedBox(height: 16),
                 if (list.isEmpty)
@@ -498,7 +499,59 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
       ),
     );
   }
+  /// Блок «Об автомобиле»: владелец, год, радиус колёс (показываются только заполненные)
+  List<Widget> _carInfo() {
+    String s(String k) {
+      final x = _v[k];
+      return x == null ? '' : '$x'.trim();
+    }
 
+    final rows = <MapEntry<String, String>>[
+      MapEntry('Владелец авто', s('car_owner')),
+      MapEntry('Год выпуска', s('year')),
+      MapEntry('Радиус колёс', fmtWheel(s('wheel_radius'))),
+    ].where((e) => e.value.isNotEmpty).toList();
+    if (rows.isEmpty) return [];
+
+    return [
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        decoration: BoxDecoration(
+          color: _P.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _P.line),
+        ),
+        child: Column(
+          children: [
+            for (var i = 0; i < rows.length; i++) ...[
+              if (i > 0) Divider(height: 18, thickness: 1, color: _P.line),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(rows[i].key,
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: _P.muted)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(rows[i].value,
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w700,
+                            color: _P.text)),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+      const SizedBox(height: 12),
+    ];
+  }
   Widget _empty() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
@@ -609,12 +662,10 @@ class _VehicleDetailScreenState extends State<VehicleDetailScreen> {
             ],
           ),
           const SizedBox(height: 14),
+          Divider(height: 1, thickness: 1, color: _P.line),
+          const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-            decoration: BoxDecoration(
-              color: _P.card2,
-              borderRadius: BorderRadius.circular(12),
-            ),
+            padding: EdgeInsets.zero,
             child: Row(
               children: [
                 Expanded(
