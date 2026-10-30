@@ -349,8 +349,8 @@ class _PasswordSheetState extends State<_PasswordSheet> {
       setState(() => _error = 'Новые пароли не совпадают');
       return;
     }
-    if (_p1.text.length < 4) {
-      setState(() => _error = 'Пароль должен быть не короче 4 символов');
+    if (_p1.text.length < 3) {
+      setState(() => _error = 'Пароль должен быть не короче 3 символов');
       return;
     }
     if (_p1.text == _cur.text) {
